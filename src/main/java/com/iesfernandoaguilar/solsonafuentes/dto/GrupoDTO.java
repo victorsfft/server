@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.iesfernandoaguilar.solsonafuentes.model.Grupo;
-import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
 
 public class GrupoDTO {
     private Long idGrupo;
@@ -100,21 +99,10 @@ public class GrupoDTO {
     }
 
     public void parse(Grupo grupo) {
-        if (grupo != null) {
-            setNombre(grupo.getNombre());
-            setCif(grupo.getCif());
-            if (grupo.getFechaCreacion() != null) {
-                setFechaCreacion(grupo.getFechaCreacion());
-            } else {
-                setFechaCreacion(LocalDateTime.now());
-            }
-            if (grupo.getCreadoPor() != null) {
-                Usuario usuario = new Usuario();
-                usuario.setIdUsuario(grupo.getCreadoPor().getIdUsuario());
-                setCreadoPorId(usuario.getIdUsuario());
-            }
-        }
+        setIdGrupo(grupo.getIdGrupo());
+        setNombre(grupo.getNombre());
+        setCif(grupo.getCif());
+        setFechaCreacion(grupo.getFechaCreacion() != null ? grupo.getFechaCreacion() : LocalDateTime.now());
+        setCreadoPorId(grupo.getCreadoPor() != null ? grupo.getCreadoPor().getIdUsuario() : null);
     }
-
-    
 }

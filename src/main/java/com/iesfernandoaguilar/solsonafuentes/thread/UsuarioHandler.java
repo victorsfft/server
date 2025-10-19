@@ -157,7 +157,7 @@ public class UsuarioHandler implements Runnable{
                         Grupo grupo = new Grupo();
                         grupo.parse(grupoDto);
 
-                        Subgrupo subgrupo = new Subgrupo("Grupo 1");
+                        Subgrupo subgrupo = new Subgrupo("Grupo 1",grupo.getCreadoPor());
                         grupo.addSubgrupo(subgrupo);
 
                         Optional<Grupo> grupoCreado = Optional.ofNullable(grupoService.save(grupo));

@@ -47,8 +47,9 @@ public class Subgrupo {
     public Subgrupo() {
     }
 
-    public Subgrupo(String nombre) {
+    public Subgrupo(String nombre,Usuario creadoPor) {
         this.nombre = nombre;
+        this.creadoPor = creadoPor;
     }
 
     public Subgrupo(String nombre, Grupo grupo, Usuario creadoPor) {
