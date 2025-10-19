@@ -1,0 +1,24 @@
+package com.iesfernandoaguilar.solsonafuentes.service;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.iesfernandoaguilar.solsonafuentes.enums.EstadoNotificacion;
+import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
+import com.iesfernandoaguilar.solsonafuentes.repository.NotificacionRepository;
+
+
+
+@Service
+public class NotificacionService {
+
+    @Autowired
+    private NotificacionRepository notificacionRepository;
+
+    public List<Notificacion> obtenerNotificaciones(Long idUsuario,EstadoNotificacion estado) {
+        return notificacionRepository.obtenerNotificaciones(idUsuario,estado);
+    }
+    
+}
