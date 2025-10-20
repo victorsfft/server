@@ -1,9 +1,11 @@
 package com.iesfernandoaguilar.solsonafuentes.service;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
 import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
 import com.iesfernandoaguilar.solsonafuentes.repository.UsuarioRepository;
 
@@ -34,5 +36,9 @@ public class UsuarioService {
 
     public Optional<Usuario> findByIdUsuario(Long idUsuario){
         return usuarioRepository.findByIdUsuario(idUsuario);
+    }
+
+    public List<Usuario> obtenerEmpleados(Long idGrupo) {
+        return usuarioRepository.obtenerEmpleados(idGrupo);
     }
 }

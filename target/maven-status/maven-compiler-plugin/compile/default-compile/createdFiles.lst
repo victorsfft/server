@@ -19,6 +19,7 @@ com\iesfernandoaguilar\solsonafuentes\Servidor.class
 com\iesfernandoaguilar\solsonafuentes\dto\SubgrupoDTO.class
 com\iesfernandoaguilar\solsonafuentes\enums\EstadoTarea.class
 com\iesfernandoaguilar\solsonafuentes\model\Comentario.class
+com\iesfernandoaguilar\solsonafuentes\repository\DepartamentoRepository.class
 com\iesfernandoaguilar\solsonafuentes\service\NotificacionService.class
 com\iesfernandoaguilar\solsonafuentes\model\Anotaciones.class
 com\iesfernandoaguilar\solsonafuentes\model\Estadistica.class
@@ -40,6 +41,7 @@ com\iesfernandoaguilar\solsonafuentes\enums\EstadoJornada.class
 com\iesfernandoaguilar\solsonafuentes\dto\UsuarioDTO.class
 com\iesfernandoaguilar\solsonafuentes\dto\HorarioDiaDTO.class
 com\iesfernandoaguilar\solsonafuentes\dto\DepartamentoDTO.class
+com\iesfernandoaguilar\solsonafuentes\service\DepartamentoService.class
 com\iesfernandoaguilar\solsonafuentes\model\Incidencia.class
 com\iesfernandoaguilar\solsonafuentes\model\JornadaLaboral.class
 com\iesfernandoaguilar\solsonafuentes\dto\ConfiguracionJornadaDTO.class

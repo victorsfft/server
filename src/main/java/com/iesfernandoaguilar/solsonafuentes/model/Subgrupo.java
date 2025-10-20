@@ -115,6 +115,11 @@ public class Subgrupo {
         this.departamentos = departamentos;
     }
 
+    public void addDepartamento(Departamento departamento){
+    	departamentos.add(departamento);
+        departamento.setSubgrupo(this);
+    }
+
     
     
 }

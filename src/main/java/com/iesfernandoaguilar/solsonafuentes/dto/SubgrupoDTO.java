@@ -81,6 +81,7 @@ public class SubgrupoDTO {
     
     public static SubgrupoDTO fromEntity(Subgrupo subgrupo) {
         SubgrupoDTO dto = new SubgrupoDTO();
+        dto.setIdSubgrupo(subgrupo.getIdSubgrupo());
         dto.setNombre(subgrupo.getNombre());
         dto.setFechaCreacion(subgrupo.getFechaCreacion());
         dto.setGrupoId(subgrupo.getGrupo().getIdGrupo());

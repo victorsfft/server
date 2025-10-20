@@ -129,4 +129,20 @@ public class UsuarioDTO {
             departamentoId = usuario.getDepartamento()!= null ? usuario.getDepartamento().getIdDepartamento() : null;
         }
     }
+    
+    public static UsuarioDTO fromEntity(Usuario usuario) {
+        UsuarioDTO dto = new UsuarioDTO();
+        if (usuario != null) {
+            dto.setIdUsuario(usuario.getIdUsuario());
+            dto.setNombre(usuario.getNombre());
+            dto.setEmail(usuario.getEmail());
+            dto.setContraseniaHasheada(usuario.getContraseniaHasheada());
+            dto.setSalt(usuario.getSalt());
+            dto.setRol(usuario.getRol());
+            dto.setGrupoId(usuario.getGrupo() != null ? usuario.getGrupo().getIdGrupo() : null);
+            dto.setSubgrupoId(usuario.getSubgrupo() != null ? usuario.getSubgrupo().getIdSubgrupo() : null);
+            dto.setDepartamentoId(usuario.getDepartamento() != null ? usuario.getDepartamento().getIdDepartamento() : null);
+        }
+        return dto;
+    }
 }

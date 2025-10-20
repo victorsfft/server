@@ -51,8 +51,11 @@ public class Departamento {
     //Constructores
     public Departamento() {}
 
-    
-
+    public Departamento(String nombre, Usuario creadoPor) {
+        this.nombre = nombre;
+        this.creadoPor = creadoPor;
+        this.fechaCreacion = LocalDateTime.now();
+    }
     //Getters y setters
     public Long getIdDepartamento() {
         return idDepartamento;

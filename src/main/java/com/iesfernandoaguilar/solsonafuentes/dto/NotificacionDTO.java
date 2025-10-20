@@ -1,29 +1,28 @@
 package com.iesfernandoaguilar.solsonafuentes.dto;
 
+
 import java.time.LocalDateTime;
 
-import com.iesfernandoaguilar.solsonafuentes.enums.EstadoNotificacion;
-import com.iesfernandoaguilar.solsonafuentes.enums.TipoNotificacion;
 import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
 
-public class NotificacionDTO{
+public class NotificacionDTO {
+
     private Long idNotificacion;
     private Long usuarioDestinoId;
     private String titulo;
     private String mensaje;
-    private TipoNotificacion tipo;
-    private Long idEntidadInvitacion;
+    private String tipo;
+    private Long grupoId; // antes idEntidadInvitacion
     private Long usuarioInvitadorId;
     private Long solicitudGrupoId;
-    private EstadoNotificacion estado;
+    private Long subgrupoId; // nuevo
+    private Long departamentoId; // nuevo
+    private String estado;
     private Boolean accionRequerida;
     private LocalDateTime fechaCreacion;
 
-    // Constructor vacío
     public NotificacionDTO() {}
 
-
-    // Getters y Setters
     public Long getIdNotificacion() {
         return idNotificacion;
     }
@@ -56,12 +55,20 @@ public class NotificacionDTO{
         this.mensaje = mensaje;
     }
 
-    public Long getIdEntidadInvitacion() {
-        return idEntidadInvitacion;
+    public String getTipo() {
+        return tipo;
     }
 
-    public void setIdEntidadInvitacion(Long idEntidadInvitacion) {
-        this.idEntidadInvitacion = idEntidadInvitacion;
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
+
+    public Long getGrupoId() {
+        return grupoId;
+    }
+
+    public void setGrupoId(Long grupoId) {
+        this.grupoId = grupoId;
     }
 
     public Long getUsuarioInvitadorId() {
@@ -80,6 +87,30 @@ public class NotificacionDTO{
         this.solicitudGrupoId = solicitudGrupoId;
     }
 
+    public Long getSubgrupoId() {
+        return subgrupoId;
+    }
+
+    public void setSubgrupoId(Long subgrupoId) {
+        this.subgrupoId = subgrupoId;
+    }
+
+    public Long getDepartamentoId() {
+        return departamentoId;
+    }
+
+    public void setDepartamentoId(Long departamentoId) {
+        this.departamentoId = departamentoId;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
+    }
+
     public Boolean getAccionRequerida() {
         return accionRequerida;
     }
@@ -96,42 +127,23 @@ public class NotificacionDTO{
         this.fechaCreacion = fechaCreacion;
     }
 
-    public TipoNotificacion getTipo() {
-        return tipo;
-    }
-
-
-    public void setTipo(TipoNotificacion tipo) {
-        this.tipo = tipo;
-    }
-
-
-    public EstadoNotificacion getEstado() {
-        return estado;
-    }
-
-
-    public void setEstado(EstadoNotificacion estado) {
-        this.estado = estado;
-    }
-
-    
-
-
     public static NotificacionDTO fromEntity(Notificacion notificacion) {
         NotificacionDTO dto = new NotificacionDTO();
-        dto.setIdNotificacion(notificacion.getIdNotificacion());
-        dto.setUsuarioDestinoId(notificacion.getUsuarioDestino().getIdUsuario());
-        dto.setTitulo(notificacion.getTitulo());
-        dto.setMensaje(notificacion.getMensaje());
-        dto.setTipo(notificacion.getTipo());
-        dto.setIdEntidadInvitacion(notificacion.getIdEntidadInvitacion());
-        dto.setUsuarioInvitadorId(notificacion.getUsuarioInvitador() != null ? notificacion.getUsuarioInvitador().getIdUsuario() : null);
-        dto.setSolicitudGrupoId(notificacion.getSolicitudGrupo() != null ? notificacion.getSolicitudGrupo().getIdSolicitud() : null);
-        dto.setEstado(notificacion.getEstado());
-        dto.setAccionRequerida(notificacion.getAccionRequerida());
-        dto.setFechaCreacion(notificacion.getFechaCreacion());
-
+        if (notificacion != null) {
+            dto.setIdNotificacion(notificacion.getIdNotificacion());
+            dto.setUsuarioDestinoId(notificacion.getUsuarioDestino() != null ? notificacion.getUsuarioDestino().getIdUsuario() : null);
+            dto.setTitulo(notificacion.getTitulo());
+            dto.setMensaje(notificacion.getMensaje());
+            dto.setTipo(notificacion.getTipo() != null ? notificacion.getTipo().name() : null);
+            dto.setGrupoId(notificacion.getGrupo() != null ? notificacion.getGrupo().getIdGrupo() : null);
+            dto.setUsuarioInvitadorId(notificacion.getUsuarioInvitador() != null ? notificacion.getUsuarioInvitador().getIdUsuario() : null);
+            dto.setSolicitudGrupoId(notificacion.getSolicitudGrupo() != null ? notificacion.getSolicitudGrupo().getIdSolicitud() : null);
+            dto.setSubgrupoId(notificacion.getSubgrupo() != null ? notificacion.getSubgrupo().getIdSubgrupo() : null);
+            dto.setDepartamentoId(notificacion.getDepartamento() != null ? notificacion.getDepartamento().getIdDepartamento() : null);
+            dto.setEstado(notificacion.getEstado() != null ? notificacion.getEstado().name() : null);
+            dto.setAccionRequerida(notificacion.getAccionRequerida());
+            dto.setFechaCreacion(notificacion.getFechaCreacion());
+        }
         return dto;
     }
 }

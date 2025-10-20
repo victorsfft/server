@@ -1,12 +1,14 @@
 package com.iesfernandoaguilar.solsonafuentes.dto;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
+
+import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
 
 public class DepartamentoDTO {
     private Long idDepartamento;
     private String nombre;
-    private Date fechaCreacion;
+    private LocalDateTime fechaCreacion;
     private Long subgrupoId;
     private Long creadoPorId;
     private List<Long> usuariosIds;
@@ -38,11 +40,11 @@ public class DepartamentoDTO {
         this.nombre = nombre;
     }
 
-    public Date getFechaCreacion() {
+    public LocalDateTime getFechaCreacion() {
         return fechaCreacion;
     }
 
-    public void setFechaCreacion(Date fechaCreacion) {
+    public void setFechaCreacion(LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
     }
 
@@ -84,6 +86,18 @@ public class DepartamentoDTO {
 
     public void setEventosAsignadosIds(List<Long> eventosAsignadosIds) {
         this.eventosAsignadosIds = eventosAsignadosIds;
+    }
+
+    public static DepartamentoDTO fromEntity(Departamento departamento) {
+        DepartamentoDTO dto = new DepartamentoDTO();
+        if (departamento != null) {
+            dto.setIdDepartamento(departamento.getIdDepartamento());
+            dto.setNombre(departamento.getNombre());
+            dto.setFechaCreacion(departamento.getFechaCreacion());
+            dto.setSubgrupoId(departamento.getSubgrupo() != null ? departamento.getSubgrupo().getIdSubgrupo() : null);
+            dto.setCreadoPorId(departamento.getCreadoPor() != null ? departamento.getCreadoPor().getIdUsuario() : null);
+        }
+        return dto;
     }
     
 }

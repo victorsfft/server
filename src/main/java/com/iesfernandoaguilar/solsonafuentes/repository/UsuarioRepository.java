@@ -1,5 +1,6 @@
 package com.iesfernandoaguilar.solsonafuentes.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,8 +17,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByEmail(String email);
     Optional<Usuario> findByIdUsuario(Long idUsuario);
     
-    @Query("SELECT usuario FROM Usuario usuario WHERE usuario.nombre = :nombreOEmailUsuario OR usuario.email = :nombreOEmailUsuario")
+    @Query("SELECT u FROM Usuario u WHERE u.nombre = :nombreOEmailUsuario OR u.email = :nombreOEmailUsuario")
     Optional<Usuario> login(@Param("nombreOEmailUsuario") String nombreOEmailUsuario);
-    
 
+    @Query("SELECT DISTINCT u FROM Usuario u WHERE u.grupo.idGrupo = :idGrupo")
+    List<Usuario> obtenerEmpleados(@Param("idGrupo") Long idGrupo);
 }

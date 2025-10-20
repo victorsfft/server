@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -16,16 +17,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.iesfernandoaguilar.solsonafuentes.Servidor;
+import com.iesfernandoaguilar.solsonafuentes.dto.DepartamentoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.GrupoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.NotificacionDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.SubgrupoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.UsuarioDTO;
 import com.iesfernandoaguilar.solsonafuentes.enums.EstadoNotificacion;
 import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
+import com.iesfernandoaguilar.solsonafuentes.enums.TipoNotificacion;
+import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
 import com.iesfernandoaguilar.solsonafuentes.model.Grupo;
 import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
 import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
 import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
+import com.iesfernandoaguilar.solsonafuentes.service.DepartamentoService;
 import com.iesfernandoaguilar.solsonafuentes.service.GrupoService;
 import com.iesfernandoaguilar.solsonafuentes.service.NotificacionService;
 import com.iesfernandoaguilar.solsonafuentes.service.SolicitudGrupoService;
@@ -60,6 +65,7 @@ public class UsuarioHandler implements Runnable{
         SolicitudGrupoService solicitudGrupoService = context.getBean(SolicitudGrupoService.class);
         NotificacionService notificacionService = context.getBean(NotificacionService.class);
         SubgrupoService subgrupoService = context.getBean(SubgrupoService.class);
+        DepartamentoService departamentoService = context.getBean(DepartamentoService.class);
 
         String nombreEmpresa = "";
         String vatEmpresa = "";
@@ -67,6 +73,13 @@ public class UsuarioHandler implements Runnable{
         GrupoDTO grupoDto = null;
         String json = "";
         ObjectMapper mapper = new ObjectMapper();
+        Long idGrupo;
+        Long idSubgrupo;
+        Long idDepartamento;
+        Optional <Usuario> usuarioOpt;
+        Departamento departamento;
+
+
         System.out.println("usuario handler");
 
         try{
@@ -157,24 +170,40 @@ public class UsuarioHandler implements Runnable{
                         Grupo grupo = new Grupo();
                         grupo.parse(grupoDto);
 
-                        Subgrupo subgrupo = new Subgrupo("Grupo 1",grupo.getCreadoPor());
+                        // Crear subgrupo por defecto
+                        Subgrupo subgrupo = new Subgrupo("Grupo 1", grupo.getCreadoPor());
                         grupo.addSubgrupo(subgrupo);
+                        
+                        // NUEVO: Crear departamento por defecto dentro del subgrupo
+                        departamento = new Departamento("Departamento General",grupo.getCreadoPor());
+                        departamento.setFechaCreacion(LocalDateTime.now());
+                        
+                        subgrupo.addDepartamento(departamento);
 
+                        // Guardar el grupo (esto guardará en cascada el subgrupo y el departamento si está configurado)
                         Optional<Grupo> grupoCreado = Optional.ofNullable(grupoService.save(grupo));
 
                         if(grupoCreado.isPresent()) {
                             mensajeServer.addArg("creado");
+                            System.out.println("✅ Empresa creada con subgrupo y departamento por defecto");
                         } else {
                             mensajeServer.addArg("no_creado");
+                            System.err.println("❌ Error al crear la empresa");
                         }
 
-                        Optional<Usuario> usuarioOpt = usuarioService.findByIdUsuario(usuarioDTO.getIdUsuario());
+                        // Actualizar el usuario con el grupo y rol de administrador
+                        usuarioOpt = usuarioService.findByIdUsuario(usuarioDTO.getIdUsuario());
                         if(usuarioOpt.isPresent()){
-                           usuarioOpt.get().setGrupo(grupoCreado.get()); 
-                           usuarioOpt.get().setRol(Rol.ADMINISTRADOR);
-                           usuarioService.save(usuarioOpt.get()); 
+                            Usuario usuario = usuarioOpt.get();
+                            usuario.setGrupo(grupoCreado.get());
+                            usuario.setRol(Rol.ADMINISTRADOR);
+                            
+                            // OPCIONAL: Asignar al usuario al departamento por defecto
+                            usuario.setDepartamento(departamento);
+                            
+                            usuarioService.save(usuario);
+                            System.out.println("✅ Usuario asignado como ADMINISTRADOR y añadido al departamento por defecto");
                         }
-                       
                         
                         enviar(mensajeServer);
                         break;
@@ -182,7 +211,7 @@ public class UsuarioHandler implements Runnable{
                     case "OBTENER_SUBGRUPOS":
                         mensajeServer.setTipo("DAR_SUBGRUPOS");
 
-                        Long idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                        idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
                         List<Subgrupo> subgrupos = subgrupoService.obtenerSubgrupos(idGrupo);
                         List<SubgrupoDTO> subgruposDtos = subgrupos.stream()
                                                     .map(SubgrupoDTO::fromEntity)
@@ -201,6 +230,90 @@ public class UsuarioHandler implements Runnable{
                         }
 
                         mensajeServer.addArg(json);
+                        enviar(mensajeServer);
+                        break;
+                    case "OBTENER_EMPLEADOS":
+                        mensajeServer.setTipo("DAR_EMPLEADOS");
+
+                        idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                        List<Usuario> empleados = usuarioService.obtenerEmpleados(idGrupo);
+                        List<UsuarioDTO> empleadosDtos = empleados.stream()
+                                                    .map(UsuarioDTO::fromEntity)
+                                                    .collect(Collectors.toList());
+                       
+                        try {
+                            mapper = new ObjectMapper();
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+                            json = mapper.writeValueAsString(empleadosDtos);
+                            
+                        } catch (Exception e) {
+                            System.err.println("Error de json");
+                        }
+
+                        mensajeServer.addArg(json);
+                        enviar(mensajeServer);
+                        break;
+                    case "OBTENER_DEPARTAMENTOS":
+                        mensajeServer.setTipo("DAR_DEPARTAMENTOS");
+
+                        idSubgrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                        List<Departamento> departamentos = departamentoService.obtenerDepartamentos(idSubgrupo);
+                        List<DepartamentoDTO> departamentosDTO = departamentos.stream()
+                                                    .map(DepartamentoDTO::fromEntity)
+                                                    .collect(Collectors.toList());
+                       
+                        try {
+                            mapper = new ObjectMapper();
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+                            json = mapper.writeValueAsString(departamentosDTO);
+                            
+                        } catch (Exception e) {
+                            System.err.println("Error de json");
+                        }
+
+                        mensajeServer.addArg(json);
+                        enviar(mensajeServer);
+                        break;
+                    case "CREAR_INVITACION":   
+                        mensajeServer.setTipo("INVITACION_CREADA");
+
+                        String email = mensajeUser.getArgs().get(0);
+                        idDepartamento = Long.valueOf(mensajeUser.getArgs().get(1));
+                        String rol = mensajeUser.getArgs().get(2);
+                        String idInvitador = mensajeUser.getArgs().get(3);
+
+
+                        usuarioOpt = usuarioService.login(email);
+                        Optional <Departamento> departamentoOpt = departamentoService.findByIdDepartamento(idDepartamento);
+                        
+
+                        if(!usuarioOpt.isPresent()){
+                            mensajeServer.addArg("usuario_no_existe");
+                        } else if(!departamentoOpt.isPresent()){
+                            mensajeServer.addArg("departamento_no_existe");
+                        }else{
+
+                            Usuario invitador = usuarioService.findByIdUsuario(Long.valueOf(idInvitador)).get();
+                            Usuario usuario = usuarioOpt.get();
+                            departamento = departamentoOpt.get();
+                            subgrupo = departamentoOpt.get().getSubgrupo();
+                            grupo = subgrupo.getGrupo();
+
+                            Notificacion notificacion = new Notificacion(usuario,"Invitación a " + grupo.getNombre(), 
+                                                                        TipoNotificacion.INVITACION_GRUPO, grupo, invitador, 
+                                                                        subgrupo, departamento, EstadoNotificacion.PENDIENTE);
+
+                            notificacionService.save(notificacion);
+
+                            mensajeServer.addArg("exito");
+                        }
+
                         enviar(mensajeServer);
                         break;
                 }

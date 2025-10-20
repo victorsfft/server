@@ -1,7 +1,5 @@
 package com.iesfernandoaguilar.solsonafuentes.model;
 
-
-
 import java.time.LocalDateTime;
 
 import com.iesfernandoaguilar.solsonafuentes.enums.EstadoNotificacion;
@@ -19,8 +17,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "Notificacion")
+@Table(name = "notificacion")
 public class Notificacion {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idNotificacion;
@@ -39,18 +38,26 @@ public class Notificacion {
     @Column(nullable = false)
     private TipoNotificacion tipo;
 
-    // Campos para invitaciones
-    @Column(name = "id_entidad_invitacion")
-    private Long idEntidadInvitacion;
+    // Relación con Grupo (antes id_entidad_invitacion)
+    @ManyToOne
+    @JoinColumn(name = "id_entidad_invitacion") // columna real
+    private Grupo grupo;
 
     @ManyToOne
     @JoinColumn(name = "id_usuario_invitador")
     private Usuario usuarioInvitador;
 
-    // Campos para solicitudes de grupo
     @ManyToOne
-    @JoinColumn(name = "id_solicitud_grupo",referencedColumnName = "id_solicitud")
+    @JoinColumn(name = "id_solicitud_grupo", referencedColumnName = "id_solicitud")
     private SolicitudGrupo solicitudGrupo;
+
+    @ManyToOne
+    @JoinColumn(name = "id_subgrupo")
+    private Subgrupo subgrupo;
+
+    @ManyToOne
+    @JoinColumn(name = "id_departamento")
+    private Departamento departamento;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -61,6 +68,21 @@ public class Notificacion {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
+
+    // --- Getters y Setters ---
+
+    public Notificacion(Usuario usuarioDestino, String titulo, TipoNotificacion tipo, Grupo grupo,
+                        Usuario usuarioInvitador, Subgrupo subgrupo, Departamento departamento,
+                        EstadoNotificacion estado) {
+        this.usuarioDestino = usuarioDestino;
+        this.titulo = titulo;
+        this.tipo = tipo;
+        this.grupo = grupo;
+        this.usuarioInvitador = usuarioInvitador;
+        this.subgrupo = subgrupo;
+        this.departamento = departamento;
+        this.estado = estado;
+    }
 
     public Long getIdNotificacion() {
         return idNotificacion;
@@ -102,12 +124,12 @@ public class Notificacion {
         this.tipo = tipo;
     }
 
-    public Long getIdEntidadInvitacion() {
-        return idEntidadInvitacion;
+    public Grupo getGrupo() {
+        return grupo;
     }
 
-    public void setIdEntidadInvitacion(Long idEntidadInvitacion) {
-        this.idEntidadInvitacion = idEntidadInvitacion;
+    public void setGrupo(Grupo grupo) {
+        this.grupo = grupo;
     }
 
     public Usuario getUsuarioInvitador() {
@@ -124,6 +146,22 @@ public class Notificacion {
 
     public void setSolicitudGrupo(SolicitudGrupo solicitudGrupo) {
         this.solicitudGrupo = solicitudGrupo;
+    }
+
+    public Subgrupo getSubgrupo() {
+        return subgrupo;
+    }
+
+    public void setSubgrupo(Subgrupo subgrupo) {
+        this.subgrupo = subgrupo;
+    }
+
+    public Departamento getDepartamento() {
+        return departamento;
+    }
+
+    public void setDepartamento(Departamento departamento) {
+        this.departamento = departamento;
     }
 
     public EstadoNotificacion getEstado() {
@@ -149,10 +187,4 @@ public class Notificacion {
     public void setFechaCreacion(LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
     }
-
-     
-    
 }
-
-
-
