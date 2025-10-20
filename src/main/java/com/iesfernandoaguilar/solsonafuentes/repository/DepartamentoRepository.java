@@ -18,5 +18,7 @@ public interface DepartamentoRepository extends JpaRepository<Departamento, Long
 
     @Query("SELECT DISTINCT d FROM Departamento d WHERE d.subgrupo.idSubgrupo = :idSubgrupo")
     List<Departamento> obtenerDepartamentos(@Param("idSubgrupo") Long idSubgrupo);
+
+    
     
 }

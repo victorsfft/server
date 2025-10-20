@@ -177,7 +177,7 @@ public class UsuarioHandler implements Runnable{
                         // NUEVO: Crear departamento por defecto dentro del subgrupo
                         departamento = new Departamento("Departamento General",grupo.getCreadoPor());
                         departamento.setFechaCreacion(LocalDateTime.now());
-                        
+
                         subgrupo.addDepartamento(departamento);
 
                         // Guardar el grupo (esto guardará en cascada el subgrupo y el departamento si está configurado)
@@ -316,6 +316,112 @@ public class UsuarioHandler implements Runnable{
 
                         enviar(mensajeServer);
                         break;
+                    // En UsuarioHandler.java (SERVIDOR) - AÑADIR después del caso "CREAR_INVITACION" (alrededor línea 450)
+
+                    case "CREAR_SUBGRUPO":
+                        mensajeServer.setTipo("SUBGRUPO_CREADO");
+                        
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String nombreSubgrupo = mensajeUser.getArgs().get(1);
+                            String descripcionSubgrupo = mensajeUser.getArgs().get(2);
+                            Long idCreador = Long.valueOf(mensajeUser.getArgs().get(3));
+                            
+                            // Buscar el grupo
+                            Optional<Grupo> grupoOpt = grupoService.findByIdGrupo(idGrupo);
+                            // Buscar el usuario creador
+                            Optional<Usuario> creadorOpt = usuarioService.findByIdUsuario(idCreador);
+                            
+                            if (grupoOpt.isPresent() && creadorOpt.isPresent()) {
+                                grupo = grupoOpt.get();
+                                Usuario creador = creadorOpt.get();
+                                
+                                // Crear el nuevo subgrupo
+                                Subgrupo nuevoSubgrupo = new Subgrupo(nombreSubgrupo, creador);
+                                nuevoSubgrupo.setFechaCreacion(LocalDateTime.now());
+                                nuevoSubgrupo.setGrupo(grupo);
+                                
+                                // Guardar el subgrupo
+                                Subgrupo subgrupoGuardado = subgrupoService.save(nuevoSubgrupo);
+                                
+                                if (subgrupoGuardado != null && subgrupoGuardado.getIdSubgrupo() != null) {
+                                    mensajeServer.addArg("exito");
+                                    System.out.println("✅ Subgrupo creado: " + nombreSubgrupo);
+                                } else {
+                                    mensajeServer.addArg("error");
+                                    System.err.println("❌ Error al guardar el subgrupo");
+                                }
+                            } else {
+                                if (!grupoOpt.isPresent()) {
+                                    mensajeServer.addArg("grupo_no_existe");
+                                    System.err.println("❌ Error: Grupo no existe");
+                                } else {
+                                    mensajeServer.addArg("usuario_no_existe");
+                                    System.err.println("❌ Error: Usuario no existe");
+                                }
+                            }
+                            
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al crear subgrupo: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        
+                        enviar(mensajeServer);
+                        break;
+
+                    case "CREAR_DEPARTAMENTO":
+                        mensajeServer.setTipo("DEPARTAMENTO_CREADO");
+                        
+                        try {
+                            idSubgrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String nombreDepartamento = mensajeUser.getArgs().get(1);
+                            String descripcionDepartamento = mensajeUser.getArgs().get(2);
+                            Long idCreador = Long.valueOf(mensajeUser.getArgs().get(3));
+                            
+                            // Buscar el subgrupo
+                            Optional<Subgrupo> subgrupoOpt = subgrupoService.findByIdSubgrupo(idSubgrupo);
+                            // Buscar el usuario creador
+                            Optional<Usuario> creadorOpt = usuarioService.findByIdUsuario(idCreador);
+                            
+                            if (subgrupoOpt.isPresent() && creadorOpt.isPresent()) {
+                                subgrupo = subgrupoOpt.get();
+                                Usuario creador = creadorOpt.get();
+                                
+                                // Crear el nuevo departamento
+                                Departamento nuevoDepartamento = new Departamento(nombreDepartamento, creador);
+                                nuevoDepartamento.setFechaCreacion(LocalDateTime.now());
+                                nuevoDepartamento.setSubgrupo(subgrupo);
+                                
+                                // Guardar el departamento
+                                Departamento departamentoGuardado = departamentoService.save(nuevoDepartamento);
+                                
+                                if (departamentoGuardado != null && departamentoGuardado.getIdDepartamento() != null) {
+                                    mensajeServer.addArg("exito");
+                                    System.out.println("✅ Departamento creado: " + nombreDepartamento);
+                                } else {
+                                    mensajeServer.addArg("error");
+                                    System.err.println("❌ Error al guardar el departamento");
+                                }
+                            } else {
+                                if (!subgrupoOpt.isPresent()) {
+                                    mensajeServer.addArg("subgrupo_no_existe");
+                                    System.err.println("❌ Error: Subgrupo no existe");
+                                } else {
+                                    mensajeServer.addArg("usuario_no_existe");
+                                    System.err.println("❌ Error: Usuario no existe");
+                                }
+                            }
+                            
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al crear departamento: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        
+                        enviar(mensajeServer);
+                        break;
+
                 }
             }
         } catch (EOFException eOFException) {

@@ -1,6 +1,7 @@
 package com.iesfernandoaguilar.solsonafuentes.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,14 @@ public class SubgrupoService {
 
     public List<Subgrupo> obtenerSubgrupos(Long idGrupo) {
         return subgrupoRepository.obtenerSubgrupos(idGrupo);
+    }
+
+    public Subgrupo save(Subgrupo subgrupo) {
+    return subgrupoRepository.save(subgrupo);
+}
+
+    public Optional<Subgrupo> findByIdSubgrupo(Long idSubgrupo) {
+        return subgrupoRepository.findById(idSubgrupo);
     }
     
 }
