@@ -13,7 +13,7 @@ import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
 @Repository
 public interface NotificacionRepository extends JpaRepository<Notificacion, Long> {
 
-    @Query("SELECT DISTINCT n FROM Notificacion n WHERE n.usuarioDestino.id = :idUsuario AND n.estado = :estado")
+    @Query("SELECT DISTINCT n FROM Notificacion n WHERE n.usuarioDestino.idUsuario = :idUsuario AND n.estado = :estado")
     List<Notificacion> obtenerNotificaciones(@Param("idUsuario") Long idUsuario, @Param("estado") EstadoNotificacion estado);
 
 }

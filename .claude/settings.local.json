@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/victo/OneDrive/Documentos/GitHub/javafx/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

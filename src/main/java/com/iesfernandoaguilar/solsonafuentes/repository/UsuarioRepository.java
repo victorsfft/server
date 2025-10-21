@@ -17,17 +17,23 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByEmail(String email);
     Optional<Usuario> findByIdUsuario(Long idUsuario);
     
+    @Query("SELECT u FROM Usuario u WHERE u.departamento.idDepartamento = :idDepartamento")
+    List<Usuario> findByIdDepartamento(@Param("idDepartamento") Long idDepartamento);
+    
     @Query("SELECT u FROM Usuario u WHERE u.nombre = :nombreOEmailUsuario OR u.email = :nombreOEmailUsuario")
     Optional<Usuario> login(@Param("nombreOEmailUsuario") String nombreOEmailUsuario);
 
     @Query("SELECT DISTINCT u FROM Usuario u WHERE u.grupo.idGrupo = :idGrupo")
     List<Usuario> obtenerEmpleados(@Param("idGrupo") Long idGrupo);
 
-    @Query("SELECT u FROM Usuario u WHERE u.grupo.idGrupo = :idGrupo AND " +
+    @Query("SELECT DISTINCT u FROM Usuario u " +
+            "LEFT JOIN u.departamento d " +
+            "LEFT JOIN d.subgrupo s " +
+            "WHERE u.grupo.idGrupo = :idGrupo AND " +
             "(LOWER(u.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
             "LOWER(u.email) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
             "LOWER(CAST(u.rol AS string)) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
-            "LOWER(u.departamento.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
-            "LOWER(u.departamento.subgrupo.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')))")
+            "LOWER(d.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
+            "LOWER(s.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')))")
     List<Usuario> buscarEmpleados(@Param("idGrupo") Long idGrupo, @Param("filtro") String filtro);
 }

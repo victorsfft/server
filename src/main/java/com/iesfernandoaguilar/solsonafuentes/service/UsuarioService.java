@@ -34,6 +34,10 @@ public class UsuarioService {
         return usuarioRepository.findByNombre(nombre);
     }
 
+    public List<Usuario> findByIdDepartamento(Long idDepartamento) {
+        return usuarioRepository.findByIdDepartamento(idDepartamento);
+    }
+    
     public Optional<Usuario> findByEmail(String email){
         return usuarioRepository.findByEmail(email);
     }
@@ -57,24 +61,24 @@ public class UsuarioService {
 
 
     public Usuario actualizarEmpleado(Long idUsuario, String rol, Long idDepartamento) {
-    Optional<Usuario> usuarioOpt = usuarioRepository.findByIdUsuario(idUsuario);
-    if (usuarioOpt.isPresent()) {
-        Usuario usuario = usuarioOpt.get();
-        
-        if (rol != null) {
-            usuario.setRol(Rol.valueOf(rol));
-        }
-        
-        if (idDepartamento != null) {
-            Optional<Departamento> departamentoOpt = departamentoService.findByIdDepartamento(idDepartamento);
-            if (departamentoOpt.isPresent()) {
-                usuario.setDepartamento(departamentoOpt.get());
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByIdUsuario(idUsuario);
+        if (usuarioOpt.isPresent()) {
+            Usuario usuario = usuarioOpt.get();
+            
+            if (rol != null) {
+                usuario.setRol(Rol.valueOf(rol));
             }
+            
+            if (idDepartamento != null) {
+                Optional<Departamento> departamentoOpt = departamentoService.findByIdDepartamento(idDepartamento);
+                if (departamentoOpt.isPresent()) {
+                    usuario.setDepartamento(departamentoOpt.get());
+                }
+            }
+            
+            return usuarioRepository.save(usuario);
         }
-        
-        return usuarioRepository.save(usuario);
+        return null;
     }
-    return null;
-}
 
 }
