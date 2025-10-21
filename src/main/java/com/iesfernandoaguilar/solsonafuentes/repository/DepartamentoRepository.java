@@ -22,6 +22,9 @@ public interface DepartamentoRepository extends JpaRepository<Departamento, Long
     @Query("SELECT DISTINCT d FROM Departamento d WHERE d.subgrupo.grupo.idGrupo = :idGrupo")
     List<Departamento> obtenerTodosDepartamentos(@Param("idGrupo") Long idGrupo);
 
-    
+    @Query("SELECT d FROM Departamento d WHERE d.subgrupo.grupo.idGrupo = :idGrupo AND LOWER(d.nombre) LIKE LOWER(CONCAT('%', :filtro, '%'))")
+    List<Departamento> buscarDepartamentosPorNombre(@Param("idGrupo") Long idGrupo, @Param("filtro") String filtro);
+
+    void deleteByIdDepartamento(Long idDepartamento);
     
 }

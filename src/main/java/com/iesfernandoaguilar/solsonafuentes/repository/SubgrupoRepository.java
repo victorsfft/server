@@ -15,4 +15,10 @@ public interface SubgrupoRepository extends JpaRepository<Subgrupo, Long> {
     @Query("SELECT DISTINCT s FROM Subgrupo s WHERE s.grupo.idGrupo = :idGrupo")
     List<Subgrupo> obtenerSubgrupos(@Param("idGrupo") Long idGrupo);
     
+
+    @Query("SELECT s FROM Subgrupo s WHERE s.grupo.idGrupo = :idGrupo AND LOWER(s.nombre) LIKE LOWER(CONCAT('%', :filtro, '%'))")
+    List<Subgrupo> buscarSubgruposPorNombre(@Param("idGrupo") Long idGrupo, @Param("filtro") String filtro);
+
+    void deleteByIdSubgrupo(Long idSubgrupo);
+    
 }

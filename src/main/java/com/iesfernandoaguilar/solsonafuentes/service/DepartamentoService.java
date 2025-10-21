@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
 import com.iesfernandoaguilar.solsonafuentes.repository.DepartamentoRepository;
 
+import jakarta.transaction.Transactional;
+
 @Service
 public class DepartamentoService {
 
@@ -29,6 +31,25 @@ public class DepartamentoService {
     
     public Departamento save(Departamento departamento) {
         return departamentoRepository.save(departamento);
+    }
+
+    public List<Departamento> buscarDepartamentosPorNombre(Long idGrupo, String filtro) {
+        return departamentoRepository.buscarDepartamentosPorNombre(idGrupo, filtro);
+    }
+
+    @Transactional
+    public void eliminarDepartamento(Long idDepartamento) {
+        departamentoRepository.deleteByIdDepartamento(idDepartamento);
+    }
+
+    public Departamento actualizarDepartamento(Long idDepartamento, String nuevoNombre) {
+        Optional<Departamento> departamentoOpt = departamentoRepository.findByIdDepartamento(idDepartamento);
+        if (departamentoOpt.isPresent()) {
+            Departamento departamento = departamentoOpt.get();
+            departamento.setNombre(nuevoNombre);
+            return departamentoRepository.save(departamento);
+        }
+        return null;
     }
 }
 

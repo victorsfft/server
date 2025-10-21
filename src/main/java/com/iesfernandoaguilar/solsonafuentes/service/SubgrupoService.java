@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
 import com.iesfernandoaguilar.solsonafuentes.repository.SubgrupoRepository;
 
+import jakarta.transaction.Transactional;
+
 @Service
 public class SubgrupoService {
 
@@ -25,6 +27,25 @@ public class SubgrupoService {
 
     public Optional<Subgrupo> findByIdSubgrupo(Long idSubgrupo) {
         return subgrupoRepository.findById(idSubgrupo);
+    }
+
+    public List<Subgrupo> buscarSubgruposPorNombre(Long idGrupo, String filtro) {
+        return subgrupoRepository.buscarSubgruposPorNombre(idGrupo, filtro);
+    }
+
+    @Transactional
+    public void eliminarSubgrupo(Long idSubgrupo) {
+        subgrupoRepository.deleteByIdSubgrupo(idSubgrupo);
+    }
+
+    public Subgrupo actualizarSubgrupo(Long idSubgrupo, String nuevoNombre) {
+        Optional<Subgrupo> subgrupoOpt = subgrupoRepository.findById(idSubgrupo);
+        if (subgrupoOpt.isPresent()) {
+            Subgrupo subgrupo = subgrupoOpt.get();
+            subgrupo.setNombre(nuevoNombre);
+            return subgrupoRepository.save(subgrupo);
+        }
+        return null;
     }
     
 }

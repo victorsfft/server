@@ -22,4 +22,12 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     @Query("SELECT DISTINCT u FROM Usuario u WHERE u.grupo.idGrupo = :idGrupo")
     List<Usuario> obtenerEmpleados(@Param("idGrupo") Long idGrupo);
+
+    @Query("SELECT u FROM Usuario u WHERE u.grupo.idGrupo = :idGrupo AND " +
+            "(LOWER(u.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
+            "LOWER(u.email) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
+            "LOWER(CAST(u.rol AS string)) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
+            "LOWER(u.departamento.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
+            "LOWER(u.departamento.subgrupo.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')))")
+    List<Usuario> buscarEmpleados(@Param("idGrupo") Long idGrupo, @Param("filtro") String filtro);
 }

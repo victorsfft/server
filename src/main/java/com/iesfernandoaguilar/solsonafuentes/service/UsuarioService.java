@@ -5,7 +5,8 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
+import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
+import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
 import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
 import com.iesfernandoaguilar.solsonafuentes.repository.UsuarioRepository;
 
@@ -16,6 +17,9 @@ public class UsuarioService {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private DepartamentoService departamentoService;
 
     @Transactional
     public Usuario save(Usuario usuario) {
@@ -41,4 +45,36 @@ public class UsuarioService {
     public List<Usuario> obtenerEmpleados(Long idGrupo) {
         return usuarioRepository.obtenerEmpleados(idGrupo);
     }
+
+    public List<Usuario> buscarEmpleados(Long idGrupo, String filtro) {
+    return usuarioRepository.buscarEmpleados(idGrupo, filtro);
+    }
+
+    @Transactional
+    public void eliminarEmpleado(Long idUsuario) {
+        usuarioRepository.deleteById(idUsuario);
+    }
+
+
+    public Usuario actualizarEmpleado(Long idUsuario, String rol, Long idDepartamento) {
+    Optional<Usuario> usuarioOpt = usuarioRepository.findByIdUsuario(idUsuario);
+    if (usuarioOpt.isPresent()) {
+        Usuario usuario = usuarioOpt.get();
+        
+        if (rol != null) {
+            usuario.setRol(Rol.valueOf(rol));
+        }
+        
+        if (idDepartamento != null) {
+            Optional<Departamento> departamentoOpt = departamentoService.findByIdDepartamento(idDepartamento);
+            if (departamentoOpt.isPresent()) {
+                usuario.setDepartamento(departamentoOpt.get());
+            }
+        }
+        
+        return usuarioRepository.save(usuario);
+    }
+    return null;
+}
+
 }

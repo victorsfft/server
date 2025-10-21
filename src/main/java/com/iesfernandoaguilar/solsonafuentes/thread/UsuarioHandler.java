@@ -480,6 +480,53 @@ public class UsuarioHandler implements Runnable{
                         mensajeServer.addArg(json);
                         enviar(mensajeServer);
                         break;
+                    case "BUSCAR_DEPARTAMENTOS":
+                        mensajeServer.setTipo("DAR_DEPARTAMENTOS_GESTION");
+
+                        idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                        String filtroDept = mensajeUser.getArgs().get(1);
+
+                        List<Departamento> departamentosFiltrados = filtroDept.isEmpty()
+                                ? departamentoService.obtenerTodosDepartamentos(idGrupo)
+                                : departamentoService.buscarDepartamentosPorNombre(idGrupo, filtroDept);
+
+                        List<DepartamentoDTO> departamentosFiltradosDtos = departamentosFiltrados.stream()
+                                .map(DepartamentoDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                        try {
+                            mapper = new ObjectMapper();
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+                            String jsonDepts = mapper.writeValueAsString(departamentosFiltradosDtos);
+                            mensajeServer.addArg(jsonDepts);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+                    case "ACTUALIZAR_EMPLEADO":
+                        mensajeServer.setTipo("EMPLEADO_ACTUALIZADO");
+
+                        Long idUsuarioAct = Long.valueOf(mensajeUser.getArgs().get(0));
+                        String nuevoRol = mensajeUser.getArgs().get(1);
+                        Long nuevoDeptId = mensajeUser.getArgs().get(2).isEmpty() ? null
+                                : Long.valueOf(mensajeUser.getArgs().get(2));
+
+                        Usuario empActualizado = usuarioService.actualizarEmpleado(idUsuarioAct, nuevoRol, nuevoDeptId);
+
+                        if (empActualizado != null) {
+                            mensajeServer.addArg("actualizado");
+                            System.out.println("✅ Empleado actualizado");
+                        } else {
+                            mensajeServer.addArg("error");
+                        }
+
+                        enviar(mensajeServer);
+                        break;
 
                 }
             }
