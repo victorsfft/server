@@ -6,6 +6,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -440,6 +441,40 @@ public class UsuarioHandler implements Runnable{
                             
                         } catch (Exception e) {
                             System.err.println("Error de json");
+                        }
+
+                        mensajeServer.addArg(json);
+                        enviar(mensajeServer);
+                        break;
+                    case "OBTENER_DEPARTAMENTOS_GRUPO":
+                        mensajeServer.setTipo("DAR_DEPARTAMENTOS_GESTION");
+
+                        idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                        
+                        // Obtener todos los departamentos del grupo (de todos sus subgrupos)
+                        List<Departamento> departamentosGrupo = new ArrayList<>();
+                        List<Subgrupo> subgruposDelGrupo = subgrupoService.obtenerSubgrupos(idGrupo);
+                        
+                        for (Subgrupo s : subgruposDelGrupo) {
+                            departamentosGrupo.addAll(departamentoService.obtenerDepartamentos(s.getIdSubgrupo()));
+                        }
+                        
+                        List<DepartamentoDTO> departamentosGrupoDTO = departamentosGrupo.stream()
+                                                    .map(DepartamentoDTO::fromEntity)
+                                                    .collect(Collectors.toList());
+                    
+                        try {
+                            mapper = new ObjectMapper();
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+                            json = mapper.writeValueAsString(departamentosGrupoDTO);
+                            System.out.println("✅ Departamentos del grupo obtenidos: " + departamentosGrupo.size());
+                            
+                        } catch (Exception e) {
+                            System.err.println("Error de json al serializar departamentos del grupo");
+                            e.printStackTrace();
                         }
 
                         mensajeServer.addArg(json);
