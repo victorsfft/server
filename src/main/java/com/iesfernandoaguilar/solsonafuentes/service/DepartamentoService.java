@@ -22,8 +22,11 @@ public class DepartamentoService {
     public List<Departamento> obtenerDepartamentos(Long idSubgrupo) {
         return departamentoRepository.obtenerDepartamentos(idSubgrupo);
     }
-    
 
+    public List<Departamento> obtenerTodosDepartamentos(Long idGrupo) {
+        return departamentoRepository.obtenerTodosDepartamentos(idGrupo);
+    }
+    
     public Departamento save(Departamento departamento) {
         return departamentoRepository.save(departamento);
     }

@@ -421,6 +421,30 @@ public class UsuarioHandler implements Runnable{
                         
                         enviar(mensajeServer);
                         break;
+                    case "OBTENER_TODOS_DEPARTAMENTOS":
+                        mensajeServer.setTipo("DAR_DEPARTAMENTOS");
+
+                        idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                        List<Departamento> todosDepartamentos = departamentoService.obtenerTodosDepartamentos(idGrupo);
+                        List<DepartamentoDTO> todosDepartamentosDTO = todosDepartamentos.stream()
+                                                    .map(DepartamentoDTO::fromEntity)
+                                                    .collect(Collectors.toList());
+                    
+                        try {
+                            mapper = new ObjectMapper();
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+                            json = mapper.writeValueAsString(todosDepartamentosDTO);
+                            
+                        } catch (Exception e) {
+                            System.err.println("Error de json");
+                        }
+
+                        mensajeServer.addArg(json);
+                        enviar(mensajeServer);
+                        break;
 
                 }
             }
