@@ -19,9 +19,8 @@ public interface TareaRepository extends JpaRepository<Tarea, Long> {
     Optional<Tarea> findByIdTareaWithUsuarios(@Param("idTarea") Long idTarea);
 
     @Query("SELECT DISTINCT t FROM Tarea t " +
-           "LEFT JOIN t.usuariosAsignados ua " +
-           "LEFT JOIN t.departamentosAsignados da " +
-           "WHERE ua.grupo.idGrupo = :idGrupo OR da.subgrupo.grupo.idGrupo = :idGrupo OR t.creadoPor.grupo.idGrupo = :idGrupo")
+           "LEFT JOIN FETCH t.usuariosAsignados " +
+           "WHERE t.creadoPor.grupo.idGrupo = :idGrupo")
     List<Tarea> obtenerTareasPorGrupo(@Param("idGrupo") Long idGrupo);
 
     @Query("SELECT DISTINCT t FROM Tarea t " +

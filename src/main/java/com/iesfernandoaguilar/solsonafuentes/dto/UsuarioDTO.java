@@ -123,7 +123,7 @@ public class UsuarioDTO {
             email = usuario.getEmail();
             contraseniaHasheada = usuario.getContraseniaHasheada();
             salt = usuario.getSalt();
-            rol = Rol.USUARIO;
+            rol = usuario.getRol();
             grupoId = usuario.getGrupo()!= null ? usuario.getGrupo().getIdGrupo() : null;
             subgrupoId = usuario.getSubgrupo()!= null ? usuario.getSubgrupo().getIdSubgrupo() : null;
             departamentoId = usuario.getDepartamento()!= null ? usuario.getDepartamento().getIdDepartamento() : null;

@@ -1,7 +1,11 @@
 package com.iesfernandoaguilar.solsonafuentes.dto;
 
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
 
 public class TareaDTO {
     private Long idTarea;
@@ -122,7 +126,71 @@ public class TareaDTO {
     public void setTareasDependientesIds(List<Long> tareasDependientesIds) {
         this.tareasDependientesIds = tareasDependientesIds;
     }
-    
-    
-    
+
+    // Método para convertir Entity a DTO
+    public static TareaDTO fromEntity(Tarea tarea) {
+        if (tarea == null) return null;
+
+        TareaDTO dto = new TareaDTO();
+        dto.setIdTarea(tarea.getIdTarea());
+        dto.setTitulo(tarea.getTitulo());
+        dto.setDescripcion(tarea.getDescripcion());
+        dto.setPrioridad(tarea.getPrioridad() != null ? tarea.getPrioridad().name() : null);
+        dto.setEstado(tarea.getEstado() != null ? tarea.getEstado().name() : null);
+
+        // Convertir LocalDate a Date
+        if (tarea.getFechaInicio() != null) {
+            dto.setFechaInicio(Date.from(tarea.getFechaInicio().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        }
+        if (tarea.getFechaFin() != null) {
+            dto.setFechaFin(Date.from(tarea.getFechaFin().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        }
+        if (tarea.getFechaCreacion() != null) {
+            dto.setFechaCreacion(Date.from(tarea.getFechaCreacion().atZone(ZoneId.systemDefault()).toInstant()));
+        }
+
+        // Convertir creador a ID
+        if (tarea.getCreadoPor() != null) {
+            dto.setCreadoPorId(tarea.getCreadoPor().getIdUsuario());
+        }
+
+        // Convertir listas de objetos a listas de IDs (con manejo seguro de lazy loading)
+        try {
+            if (tarea.getUsuariosAsignados() != null && !tarea.getUsuariosAsignados().isEmpty()) {
+                dto.setUsuariosAsignadosIds(
+                    tarea.getUsuariosAsignados().stream()
+                        .map(usuario -> usuario.getIdUsuario())
+                        .collect(Collectors.toList())
+                );
+            }
+        } catch (Exception e) {
+            // Si hay LazyInitializationException, dejamos la lista como null
+        }
+
+        try {
+            if (tarea.getDepartamentosAsignados() != null && !tarea.getDepartamentosAsignados().isEmpty()) {
+                dto.setDepartamentosAsignadosIds(
+                    tarea.getDepartamentosAsignados().stream()
+                        .map(dept -> dept.getIdDepartamento())
+                        .collect(Collectors.toList())
+                );
+            }
+        } catch (Exception e) {
+            // Si hay LazyInitializationException, dejamos la lista como null
+        }
+
+        try {
+            if (tarea.getTareasDependientes() != null && !tarea.getTareasDependientes().isEmpty()) {
+                dto.setTareasDependientesIds(
+                    tarea.getTareasDependientes().stream()
+                        .map(t -> t.getIdTarea())
+                        .collect(Collectors.toList())
+                );
+            }
+        } catch (Exception e) {
+            // Si hay LazyInitializationException, dejamos la lista como null
+        }
+
+        return dto;
+    }
 }

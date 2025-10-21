@@ -22,6 +22,7 @@ import com.iesfernandoaguilar.solsonafuentes.dto.DepartamentoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.GrupoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.NotificacionDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.SubgrupoDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.TareaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.UsuarioDTO;
 import com.iesfernandoaguilar.solsonafuentes.enums.EstadoNotificacion;
 import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
@@ -758,13 +759,18 @@ public class UsuarioHandler implements Runnable{
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
                             List<Tarea> tareasGrupo = tareaService.obtenerTareasPorGrupo(idGrupo);
 
+                            // Convertir entidades a DTOs
+                            List<TareaDTO> tareasDTOs = tareasGrupo.stream()
+                                .map(TareaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
                             mapper.registerModule(new JavaTimeModule());
                             mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                             mapper.setSerializationInclusion(Include.NON_NULL);
 
-                            json = mapper.writeValueAsString(tareasGrupo);
+                            json = mapper.writeValueAsString(tareasDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Tareas del grupo obtenidas: " + tareasGrupo.size());
+                            System.out.println("✅ Tareas del grupo obtenidas: " + tareasDTOs.size());
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener tareas del grupo");
                             e.printStackTrace();
