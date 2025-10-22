@@ -78,22 +78,46 @@ public class TareaService {
 
     @Transactional
     public Tarea asignarUsuario(Long idTarea, Usuario usuario) {
-        Optional<Tarea> tareaOpt = tareaRepository.findByIdTareaWithUsuarios(idTarea);
-        if (tareaOpt.isPresent()) {
-            Tarea tarea = tareaOpt.get();
-            tarea.addUsuarioAsignado(usuario);
-            return tareaRepository.save(tarea);
+        try {
+            Optional<Tarea> tareaOpt = tareaRepository.findByIdTareaWithUsuarios(idTarea);
+            if (tareaOpt.isPresent()) {
+                Tarea tarea = tareaOpt.get();
+                if (!tarea.getUsuariosAsignados().contains(usuario)) {
+                    tarea.addUsuarioAsignado(usuario);
+                    Tarea resultado = tareaRepository.save(tarea);
+                    tareaRepository.flush(); // Asegurar que se persista inmediatamente
+                    return resultado;
+                }
+                return tarea; // Ya estaba asignado
+            } else {
+                System.err.println("Error: Tarea con ID " + idTarea + " no encontrada");
+            }
+        } catch (Exception e) {
+            System.err.println("Error al asignar usuario a tarea: " + e.getMessage());
+            e.printStackTrace();
         }
         return null;
     }
 
     @Transactional
     public Tarea asignarDepartamento(Long idTarea, Departamento departamento) {
-        Optional<Tarea> tareaOpt = tareaRepository.findByIdTarea(idTarea);
-        if (tareaOpt.isPresent()) {
-            Tarea tarea = tareaOpt.get();
-            tarea.addDepartamentoAsignado(departamento);
-            return tareaRepository.save(tarea);
+        try {
+            Optional<Tarea> tareaOpt = tareaRepository.findByIdTareaWithDepartamentos(idTarea);
+            if (tareaOpt.isPresent()) {
+                Tarea tarea = tareaOpt.get();
+                if (!tarea.getDepartamentosAsignados().contains(departamento)) {
+                    tarea.addDepartamentoAsignado(departamento);
+                    Tarea resultado = tareaRepository.save(tarea);
+                    tareaRepository.flush(); // Asegurar que se persista inmediatamente
+                    return resultado;
+                }
+                return tarea; // Ya estaba asignado
+            } else {
+                System.err.println("Error: Tarea con ID " + idTarea + " no encontrada");
+            }
+        } catch (Exception e) {
+            System.err.println("Error al asignar departamento a tarea: " + e.getMessage());
+            e.printStackTrace();
         }
         return null;
     }

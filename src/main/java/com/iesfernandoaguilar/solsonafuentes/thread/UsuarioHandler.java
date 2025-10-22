@@ -17,9 +17,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.iesfernandoaguilar.solsonafuentes.Servidor;
+import com.iesfernandoaguilar.solsonafuentes.dto.ComentarioDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.DepartamentoDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.EventoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.GrupoDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.HistorialDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.IncidenciaDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.JornadaLaboralDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.DescansoJornadaDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.EstadisticaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.NotificacionDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.SubgrupoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.TareaDTO;
@@ -28,24 +34,12 @@ import com.iesfernandoaguilar.solsonafuentes.enums.EstadoNotificacion;
 import com.iesfernandoaguilar.solsonafuentes.enums.EstadoTarea;
 import com.iesfernandoaguilar.solsonafuentes.enums.Prioridad;
 import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
+import com.iesfernandoaguilar.solsonafuentes.enums.TipoAccionHistorial;
+import com.iesfernandoaguilar.solsonafuentes.enums.TipoDescanso;
 import com.iesfernandoaguilar.solsonafuentes.enums.TipoNotificacion;
-import com.iesfernandoaguilar.solsonafuentes.model.Comentario;
-import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
-import com.iesfernandoaguilar.solsonafuentes.model.Grupo;
-import com.iesfernandoaguilar.solsonafuentes.model.Incidencia;
-import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
-import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
-import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
-import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
-import com.iesfernandoaguilar.solsonafuentes.service.ComentarioService;
-import com.iesfernandoaguilar.solsonafuentes.service.DepartamentoService;
-import com.iesfernandoaguilar.solsonafuentes.service.GrupoService;
-import com.iesfernandoaguilar.solsonafuentes.service.IncidenciaService;
-import com.iesfernandoaguilar.solsonafuentes.service.NotificacionService;
-import com.iesfernandoaguilar.solsonafuentes.service.SolicitudGrupoService;
-import com.iesfernandoaguilar.solsonafuentes.service.SubgrupoService;
-import com.iesfernandoaguilar.solsonafuentes.service.TareaService;
-import com.iesfernandoaguilar.solsonafuentes.service.UsuarioService;
+import com.iesfernandoaguilar.solsonafuentes.model.*;
+import com.iesfernandoaguilar.solsonafuentes.service.*;
+import java.time.LocalTime;
 import com.iesfernandoaguilar.solsonafuentes.util.MakeAbstractRequest;
 import com.iesfernandoaguilar.solsonafuentes.util.Mensaje;
 import com.iesfernandoaguilar.solsonafuentes.util.Serializador;
@@ -79,6 +73,12 @@ public class UsuarioHandler implements Runnable{
         TareaService tareaService = context.getBean(TareaService.class);
         ComentarioService comentarioService = context.getBean(ComentarioService.class);
         IncidenciaService incidenciaService = context.getBean(IncidenciaService.class);
+        EventoService eventoService = context.getBean(EventoService.class);
+        HistorialService historialService = context.getBean(HistorialService.class);
+        JornadaLaboralService jornadaLaboralService = context.getBean(JornadaLaboralService.class);
+        DescansoJornadaService descansoJornadaService = context.getBean(DescansoJornadaService.class);
+        EstadisticaService estadisticaService = context.getBean(EstadisticaService.class);
+        InformeService informeService = context.getBean(InformeService.class);
 
         String nombreEmpresa = "";
         String vatEmpresa = "";
@@ -826,6 +826,119 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
+                    case "CREAR_TAREA_ASIGNACIONES_COMENTARIO":
+                        mensajeServer.setTipo("TAREA_CREADA");
+
+                        try {
+                            String titulo = mensajeUser.getArgs().get(0);
+                            String descripcion = mensajeUser.getArgs().get(1);
+                            String prioridadStr = mensajeUser.getArgs().get(2);
+                            String fechaFinStr = mensajeUser.getArgs().get(3);
+                            Long idCreador = Long.valueOf(mensajeUser.getArgs().get(4));
+                            String usuariosStr = mensajeUser.getArgs().get(5);
+                            String departamentosStr = mensajeUser.getArgs().get(6);
+                            String comentarioInicial = mensajeUser.getArgs().get(7);
+
+                            // Crear la tarea
+                            Tarea nuevaTarea = new Tarea();
+                            nuevaTarea.setTitulo(titulo);
+                            nuevaTarea.setDescripcion(descripcion);
+                            nuevaTarea.setPrioridad(Prioridad.valueOf(prioridadStr.toUpperCase()));
+
+                            if (fechaFinStr != null && !fechaFinStr.isEmpty()) {
+                                nuevaTarea.setFechaFin(java.time.LocalDate.parse(fechaFinStr));
+                            }
+
+                            usuarioOpt = usuarioService.findByIdUsuario(idCreador);
+                            if (usuarioOpt.isPresent()) {
+                                nuevaTarea.setCreadoPor(usuarioOpt.get());
+                            }
+
+                            // Guardar la tarea
+                            Tarea tareaCreada = tareaService.crearTarea(nuevaTarea);
+
+                            if (tareaCreada != null) {
+                                System.out.println("✅ Tarea creada: " + titulo + " (ID: " + tareaCreada.getIdTarea() + ")");
+
+                                // Asignar usuarios (crea registros en tarea_usuario)
+                                if (usuariosStr != null && !usuariosStr.isEmpty()) {
+                                    String[] idsUsuarios = usuariosStr.split(",");
+                                    for (String idUsuarioStr : idsUsuarios) {
+                                        if (!idUsuarioStr.trim().isEmpty()) {
+                                            try {
+                                                Long idUsuarioAsignado = Long.valueOf(idUsuarioStr.trim());
+                                                Optional<Usuario> usuarioAsignado = usuarioService.findByIdUsuario(idUsuarioAsignado);
+                                                if (usuarioAsignado.isPresent()) {
+                                                    Tarea resultado = tareaService.asignarUsuario(tareaCreada.getIdTarea(), usuarioAsignado.get());
+                                                    if (resultado != null) {
+                                                        tareaCreada = resultado;
+                                                        System.out.println("   ✅ Usuario asignado: " + usuarioAsignado.get().getNombre());
+                                                    } else {
+                                                        System.err.println("   ❌ No se pudo asignar usuario: " + usuarioAsignado.get().getNombre());
+                                                    }
+                                                }
+                                            } catch (NumberFormatException e) {
+                                                System.err.println("   ⚠️ ID de usuario inválido: " + idUsuarioStr);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Asignar departamentos
+                                if (departamentosStr != null && !departamentosStr.isEmpty()) {
+                                    String[] idsDepartamentos = departamentosStr.split(",");
+                                    for (String idDeptStr : idsDepartamentos) {
+                                        if (!idDeptStr.trim().isEmpty()) {
+                                            try {
+                                                Long idDeptAsignado = Long.valueOf(idDeptStr.trim());
+                                                Optional<Departamento> deptAsignado = departamentoService.findByIdDepartamento(idDeptAsignado);
+                                                if (deptAsignado.isPresent()) {
+                                                    Tarea resultado = tareaService.asignarDepartamento(tareaCreada.getIdTarea(), deptAsignado.get());
+                                                    if (resultado != null) {
+                                                        tareaCreada = resultado;
+                                                        System.out.println("   ✅ Departamento asignado: " + deptAsignado.get().getNombre());
+                                                    } else {
+                                                        System.err.println("   ❌ No se pudo asignar departamento: " + deptAsignado.get().getNombre());
+                                                    }
+                                                }
+                                            } catch (NumberFormatException e) {
+                                                System.err.println("   ⚠️ ID de departamento inválido: " + idDeptStr);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Crear comentario inicial si no está vacío
+                                if (comentarioInicial != null && !comentarioInicial.isEmpty()) {
+                                    Comentario nuevoComentario = new Comentario();
+                                    nuevoComentario.setTexto(comentarioInicial);
+                                    usuarioOpt = usuarioService.findByIdUsuario(idCreador);
+                                    if (usuarioOpt.isPresent()) {
+                                        nuevoComentario.setUsuario(usuarioOpt.get());
+                                    }
+                                    nuevoComentario.setTarea(tareaCreada);
+                                    Comentario comentarioCreado = comentarioService.crearComentario(nuevoComentario);
+                                    if (comentarioCreado != null) {
+                                        System.out.println("   ✅ Comentario inicial creado en la tarea");
+                                    }
+                                }
+
+                                mensajeServer.addArg("creada");
+                                mensajeServer.addArg(String.valueOf(tareaCreada.getIdTarea()));
+                            } else {
+                                mensajeServer.addArg("error");
+                                System.err.println("❌ No se pudo crear la tarea");
+                            }
+
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al crear tarea con asignaciones y comentario: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
                     case "CAMBIAR_ESTADO_TAREA":
                         mensajeServer.setTipo("ESTADO_TAREA_CAMBIADO");
 
@@ -889,13 +1002,18 @@ public class UsuarioHandler implements Runnable{
                             Long idTarea = Long.valueOf(mensajeUser.getArgs().get(0));
                             List<Comentario> comentarios = comentarioService.obtenerComentariosPorTarea(idTarea);
 
+                            // Convertir entidades a DTOs para evitar problemas de lazy loading
+                            List<ComentarioDTO> comentariosDTOs = comentarios.stream()
+                                .map(ComentarioDTO::fromEntity)
+                                .collect(Collectors.toList());
+
                             mapper.registerModule(new JavaTimeModule());
                             mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                             mapper.setSerializationInclusion(Include.NON_NULL);
 
-                            json = mapper.writeValueAsString(comentarios);
+                            json = mapper.writeValueAsString(comentariosDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Comentarios de tarea obtenidos: " + comentarios.size());
+                            System.out.println("✅ Comentarios de tarea obtenidos: " + comentariosDTOs.size());
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener comentarios de tarea");
                             e.printStackTrace();
@@ -1101,6 +1219,601 @@ public class UsuarioHandler implements Runnable{
                         }
                         enviar(mensajeServer);
                         break;
+
+                    // ==================== CASOS DE EVENTOS ====================
+
+                    case "CREAR_EVENTO_ASIGNACIONES":
+                        mensajeServer.setTipo("EVENTO_CREADO");
+
+                        try {
+                            String tituloEvento = mensajeUser.getArgs().get(0);
+                            String descripcionEvento = mensajeUser.getArgs().get(1);
+                            String fechaInicioStr = mensajeUser.getArgs().get(2);
+                            String fechaFinStr = mensajeUser.getArgs().get(3);
+                            Boolean seRepite = Boolean.valueOf(mensajeUser.getArgs().get(4));
+                            Integer diasRepeticion = Integer.valueOf(mensajeUser.getArgs().get(5));
+                            Long idCreador = Long.valueOf(mensajeUser.getArgs().get(6));
+                            String usuariosJson = mensajeUser.getArgs().get(7);
+                            String departamentosJson = mensajeUser.getArgs().get(8);
+
+                            // Parsear listas de IDs
+                            List<Long> usuariosIds = mapper.readValue(usuariosJson,
+                                mapper.getTypeFactory().constructCollectionType(List.class, Long.class));
+                            List<Long> departamentosIds = mapper.readValue(departamentosJson,
+                                mapper.getTypeFactory().constructCollectionType(List.class, Long.class));
+
+                            // Convertir fechas ISO a LocalDateTime
+                            java.time.LocalDateTime fechaInicio = java.time.LocalDateTime.parse(fechaInicioStr);
+                            java.time.LocalDateTime fechaFin = java.time.LocalDateTime.parse(fechaFinStr);
+
+                            // Obtener usuario creador
+                            usuarioOpt = usuarioService.findByIdUsuario(idCreador);
+
+                            if (usuarioOpt.isPresent()) {
+                                // Crear evento
+                                Evento nuevoEvento = new Evento();
+                                nuevoEvento.setTitulo(tituloEvento);
+                                nuevoEvento.setDescripcion(descripcionEvento);
+                                nuevoEvento.setFechaInicio(fechaInicio.toLocalDate());
+                                nuevoEvento.setFechaFin(fechaFin.toLocalDate());
+                                nuevoEvento.setSeRepite(seRepite);
+                                nuevoEvento.setDiasRepeticion(diasRepeticion);
+                                nuevoEvento.setCreadoPor(usuarioOpt.get());
+
+                                Evento eventoCreado = eventoService.crearEvento(nuevoEvento);
+
+                                if (eventoCreado != null) {
+                                    // Asignar usuarios
+                                    for (Long idUsuarioAsignado : usuariosIds) {
+                                        Optional<Usuario> usuarioAsignadoOpt = usuarioService.findByIdUsuario(idUsuarioAsignado);
+                                        if (usuarioAsignadoOpt.isPresent()) {
+                                            eventoService.asignarUsuario(eventoCreado.getIdEvento(), usuarioAsignadoOpt.get());
+                                        }
+                                    }
+
+                                    // Asignar departamentos
+                                    for (Long idDept : departamentosIds) {
+                                        Optional<Departamento> deptOpt = departamentoService.findByIdDepartamento(idDept);
+                                        if (deptOpt.isPresent()) {
+                                            eventoService.asignarDepartamento(eventoCreado.getIdEvento(), deptOpt.get());
+                                        }
+                                    }
+
+                                    mensajeServer.addArg("exito");
+                                    System.out.println("✅ Evento creado: " + eventoCreado.getTitulo() +
+                                        " con " + usuariosIds.size() + " usuarios y " + departamentosIds.size() + " departamentos");
+                                } else {
+                                    mensajeServer.addArg("error");
+                                }
+                            } else {
+                                mensajeServer.addArg("usuario_no_existe");
+                            }
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al crear evento: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_EVENTOS_GRUPO":
+                        mensajeServer.setTipo("DAR_EVENTOS_GRUPO");
+
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<Evento> eventosGrupo = eventoService.obtenerEventosPorGrupo(idGrupo);
+
+                            // Convertir entidades a DTOs
+                            List<EventoDTO> eventosDTOs = eventosGrupo.stream()
+                                .map(EventoDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(eventosDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Eventos del grupo obtenidos: " + eventosDTOs.size());
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener eventos del grupo");
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_EVENTOS_USUARIO":
+                        mensajeServer.setTipo("DAR_EVENTOS_USUARIO");
+
+                        try {
+                            Long idUsuarioEventos = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<Evento> eventosUsuario = eventoService.obtenerEventosDeUsuario(idUsuarioEventos);
+
+                            // Convertir entidades a DTOs
+                            List<EventoDTO> eventosDTOs = eventosUsuario.stream()
+                                .map(EventoDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(eventosDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Eventos del usuario obtenidos: " + eventosDTOs.size());
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener eventos del usuario");
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    // ==================== HISTORIAL HANDLERS ====================
+                    case "OBTENER_HISTORIAL_GRUPO":
+                        mensajeServer.setTipo("DAR_HISTORIAL_GRUPO");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<Historial> historial = historialService.obtenerHistorialGrupo(idGrupo);
+                            List<HistorialDTO> historialDTOs = historial.stream()
+                                .map(HistorialDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(historialDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Historial del grupo obtenido");
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener historial del grupo");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "BUSCAR_HISTORIAL_CON_FILTROS":
+                        mensajeServer.setTipo("DAR_HISTORIAL_FILTRADO");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String tipoAccionStr = mensajeUser.getArgs().get(1);
+                            String idUsuarioStr = mensajeUser.getArgs().get(2);
+                            String fechaDesdeStr = mensajeUser.getArgs().get(3);
+                            String fechaHastaStr = mensajeUser.getArgs().get(4);
+
+                            TipoAccionHistorial tipoAccion = tipoAccionStr != null && !tipoAccionStr.equals("null") ?
+                                TipoAccionHistorial.valueOf(tipoAccionStr) : null;
+                            Long idUsuarioFiltro = idUsuarioStr != null && !idUsuarioStr.equals("null") ?
+                                Long.valueOf(idUsuarioStr) : null;
+                            LocalDateTime fechaDesde = fechaDesdeStr != null && !fechaDesdeStr.equals("null") ?
+                                LocalDateTime.parse(fechaDesdeStr) : null;
+                            LocalDateTime fechaHasta = fechaHastaStr != null && !fechaHastaStr.equals("null") ?
+                                LocalDateTime.parse(fechaHastaStr) : null;
+
+                            List<Historial> historial = historialService.buscarHistorialConFiltros(
+                                idGrupo, tipoAccion, idUsuarioFiltro, fechaDesde, fechaHasta);
+                            List<HistorialDTO> historialDTOs = historial.stream()
+                                .map(HistorialDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(historialDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Historial filtrado obtenido");
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener historial filtrado");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    // ==================== JORNADA LABORAL HANDLERS ====================
+                    case "REGISTRAR_ENTRADA_JORNADA":
+                        mensajeServer.setTipo("ENTRADA_REGISTRADA");
+                        try {
+                            Long idUsuarioJornada = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String horaEntrada = mensajeUser.getArgs().get(1);
+                            usuarioOpt = usuarioService.findByIdUsuario(idUsuarioJornada);
+                            if (usuarioOpt.isPresent()) {
+                                JornadaLaboral jornada = jornadaLaboralService.registrarEntrada(
+                                    usuarioOpt.get(), null, LocalTime.parse(horaEntrada));
+
+                                mapper.registerModule(new JavaTimeModule());
+                                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                mapper.setSerializationInclusion(Include.NON_NULL);
+
+                                json = mapper.writeValueAsString(JornadaLaboralDTO.fromEntity(jornada));
+                                mensajeServer.addArg("exito");
+                                mensajeServer.addArg(json);
+                                System.out.println("✅ Entrada registrada");
+                            } else {
+                                mensajeServer.addArg("error");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al registrar entrada");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "REGISTRAR_SALIDA_JORNADA":
+                        mensajeServer.setTipo("SALIDA_REGISTRADA");
+                        try {
+                            Long idUsuarioSalida = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String horaSalida = mensajeUser.getArgs().get(1);
+
+                            usuarioOpt = usuarioService.findByIdUsuario(idUsuarioSalida);
+                            if (usuarioOpt.isPresent()) {
+                                JornadaLaboral jornada = jornadaLaboralService.registrarSalida(
+                                    usuarioOpt.get(), LocalTime.parse(horaSalida));
+
+                                mapper.registerModule(new JavaTimeModule());
+                                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                mapper.setSerializationInclusion(Include.NON_NULL);
+
+                                json = mapper.writeValueAsString(JornadaLaboralDTO.fromEntity(jornada));
+                                mensajeServer.addArg("exito");
+                                mensajeServer.addArg(json);
+                                System.out.println("✅ Salida registrada");
+                            } else {
+                                mensajeServer.addArg("error");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al registrar salida");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "REGISTRAR_DESCANSO":
+                        mensajeServer.setTipo("DESCANSO_REGISTRADO");
+                        try {
+                            Long idUsuarioDescanso = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String tipoDescansoStr = mensajeUser.getArgs().get(1);
+                            Integer duracionMinutos = Integer.valueOf(mensajeUser.getArgs().get(2));
+                            String horaInicioStr = mensajeUser.getArgs().get(3);
+
+                            usuarioOpt = usuarioService.findByIdUsuario(idUsuarioDescanso);
+                            if (usuarioOpt.isPresent()) {
+                                Optional<JornadaLaboral> jornadaOpt = jornadaLaboralService.obtenerJornadaActual(idUsuarioDescanso);
+                                if (jornadaOpt.isPresent()) {
+                                    TipoDescanso tipoDescanso = TipoDescanso.valueOf(tipoDescansoStr);
+                                    DescansoJornada descanso = descansoJornadaService.registrarDescanso(
+                                        jornadaOpt.get(), tipoDescanso, duracionMinutos, LocalTime.parse(horaInicioStr));
+
+                                    // Iniciar descanso en la jornada
+                                    jornadaLaboralService.iniciarDescanso(usuarioOpt.get());
+
+                                    mapper.registerModule(new JavaTimeModule());
+                                    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                    mapper.setSerializationInclusion(Include.NON_NULL);
+
+                                    json = mapper.writeValueAsString(DescansoJornadaDTO.fromEntity(descanso));
+                                    mensajeServer.addArg("exito");
+                                    mensajeServer.addArg(json);
+                                    System.out.println("✅ Descanso registrado");
+                                } else {
+                                    mensajeServer.addArg("sin_jornada");
+                                }
+                            } else {
+                                mensajeServer.addArg("error");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al registrar descanso");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "REANUDAR_TRABAJO":
+                        mensajeServer.setTipo("TRABAJO_REANUDADO");
+                        try {
+                            Long idUsuarioReanudar = Long.valueOf(mensajeUser.getArgs().get(0));
+                            usuarioOpt = usuarioService.findByIdUsuario(idUsuarioReanudar);
+                            if (usuarioOpt.isPresent()) {
+                                jornadaLaboralService.finalizarDescanso(usuarioOpt.get());
+                                mensajeServer.addArg("exito");
+                                System.out.println("✅ Trabajo reanudado");
+                            } else {
+                                mensajeServer.addArg("error");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al reanudar trabajo");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_JORNADA_ACTUAL":
+                        mensajeServer.setTipo("DAR_JORNADA_ACTUAL");
+                        try {
+                            Long idUsuarioJornada = Long.valueOf(mensajeUser.getArgs().get(0));
+                            Optional<JornadaLaboral> jornadaOpt = jornadaLaboralService.obtenerJornadaActual(idUsuarioJornada);
+
+                            if (jornadaOpt.isPresent()) {
+                                mapper.registerModule(new JavaTimeModule());
+                                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                mapper.setSerializationInclusion(Include.NON_NULL);
+
+                                json = mapper.writeValueAsString(JornadaLaboralDTO.fromEntity(jornadaOpt.get()));
+                                mensajeServer.addArg(json);
+                                System.out.println("✅ Jornada actual obtenida");
+                            } else {
+                                mensajeServer.addArg("null");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener jornada actual");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_JORNADAS_USUARIO":
+                        mensajeServer.setTipo("DAR_JORNADAS_USUARIO");
+                        try {
+                            Long idUsuarioJornadas = Long.valueOf(mensajeUser.getArgs().get(0));
+                            java.time.LocalDate fechaDesde = java.time.LocalDate.parse(mensajeUser.getArgs().get(1));
+                            java.time.LocalDate fechaHasta = java.time.LocalDate.parse(mensajeUser.getArgs().get(2));
+
+                            List<JornadaLaboral> jornadas = jornadaLaboralService.obtenerJornadasUsuario(
+                                idUsuarioJornadas, fechaDesde, fechaHasta);
+                            List<JornadaLaboralDTO> jornadasDTOs = jornadas.stream()
+                                .map(JornadaLaboralDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(jornadasDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Jornadas de usuario obtenidas: " + jornadasDTOs.size());
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener jornadas de usuario");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_JORNADAS_GRUPO":
+                        mensajeServer.setTipo("DAR_JORNADAS_GRUPO");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            java.time.LocalDate fechaDesde = java.time.LocalDate.parse(mensajeUser.getArgs().get(1));
+                            java.time.LocalDate fechaHasta = java.time.LocalDate.parse(mensajeUser.getArgs().get(2));
+
+                            List<JornadaLaboral> jornadas = jornadaLaboralService.obtenerJornadasGrupo(
+                                idGrupo, fechaDesde, fechaHasta);
+                            List<JornadaLaboralDTO> jornadasDTOs = jornadas.stream()
+                                .map(JornadaLaboralDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(jornadasDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Jornadas de grupo obtenidas: " + jornadasDTOs.size());
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener jornadas de grupo");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_EMPLEADOS_SIN_FICHAR":
+                        mensajeServer.setTipo("DAR_EMPLEADOS_SIN_FICHAR");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String fechaStr = mensajeUser.getArgs().get(1);
+                            java.time.LocalDate fecha = fechaStr != null && !fechaStr.equals("null") ?
+                                java.time.LocalDate.parse(fechaStr) : java.time.LocalDate.now();
+
+                            List<Long> idsSinFichar = jornadaLaboralService.obtenerEmpleadosSinFichar(idGrupo, fecha);
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(idsSinFichar);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Empleados sin fichar obtenidos: " + idsSinFichar.size());
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener empleados sin fichar");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_DESCANSOS_JORNADA":
+                        mensajeServer.setTipo("DAR_DESCANSOS_JORNADA");
+                        try {
+                            Long idJornada = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<DescansoJornada> descansos = descansoJornadaService.obtenerDescansosPorJornada(idJornada);
+                            List<DescansoJornadaDTO> descansosDTOs = descansos.stream()
+                                .map(DescansoJornadaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(descansosDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Descansos de jornada obtenidos: " + descansosDTOs.size());
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener descansos de jornada");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    // ==================== ESTADÍSTICAS HANDLERS ====================
+                    case "OBTENER_ESTADISTICAS_USUARIO":
+                        mensajeServer.setTipo("DAR_ESTADISTICAS_USUARIO");
+                        try {
+                            Long idUsuarioEstadisticas = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<Estadistica> estadisticas = estadisticaService.obtenerEstadisticasUsuario(idUsuarioEstadisticas);
+                            List<EstadisticaDTO> estadisticasDTOs = estadisticas.stream()
+                                .map(EstadisticaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(estadisticasDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Estadísticas de usuario obtenidas");
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener estadísticas de usuario");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_ESTADISTICAS_GRUPO":
+                        mensajeServer.setTipo("DAR_ESTADISTICAS_GRUPO");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<Estadistica> estadisticas = estadisticaService.obtenerUltimasEstadisticasUsuariosDelGrupo(idGrupo);
+                            List<EstadisticaDTO> estadisticasDTOs = estadisticas.stream()
+                                .map(EstadisticaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(estadisticasDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Estadísticas de grupo obtenidas");
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener estadísticas de grupo");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ACTUALIZAR_ESTADISTICAS_USUARIO":
+                        mensajeServer.setTipo("ESTADISTICAS_ACTUALIZADAS");
+                        try {
+                            Long idUsuarioActualizar = Long.valueOf(mensajeUser.getArgs().get(0));
+                            usuarioOpt = usuarioService.findByIdUsuario(idUsuarioActualizar);
+                            if (usuarioOpt.isPresent()) {
+                                Estadistica estadistica = estadisticaService.actualizarEstadisticasUsuario(usuarioOpt.get());
+
+                                mapper.registerModule(new JavaTimeModule());
+                                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                mapper.setSerializationInclusion(Include.NON_NULL);
+
+                                json = mapper.writeValueAsString(EstadisticaDTO.fromEntity(estadistica));
+                                mensajeServer.addArg("exito");
+                                mensajeServer.addArg(json);
+                                System.out.println("✅ Estadísticas de usuario actualizadas");
+                            } else {
+                                mensajeServer.addArg("error");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al actualizar estadísticas de usuario");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    // ==================== INFORMES HANDLERS ====================
+                    case "GENERAR_INFORME_JORNADA":
+                        mensajeServer.setTipo("INFORME_GENERADO");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String idUsuarioStr = mensajeUser.getArgs().get(1);
+                            java.time.LocalDate fechaDesde = java.time.LocalDate.parse(mensajeUser.getArgs().get(2));
+                            java.time.LocalDate fechaHasta = java.time.LocalDate.parse(mensajeUser.getArgs().get(3));
+                            String rutaDestino = mensajeUser.getArgs().get(4);
+
+                            Long idUsuarioInforme = idUsuarioStr != null && !idUsuarioStr.equals("null") ?
+                                Long.valueOf(idUsuarioStr) : null;
+
+                            String archivoGenerado = informeService.generarInformeJornadaLaboral(
+                                idGrupo, idUsuarioInforme, fechaDesde, fechaHasta, rutaDestino);
+
+                            mensajeServer.addArg("exito");
+                            mensajeServer.addArg(archivoGenerado);
+                            System.out.println("✅ Informe de jornada generado: " + archivoGenerado);
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al generar informe de jornada");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "GENERAR_INFORME_ESTADISTICAS":
+                        mensajeServer.setTipo("INFORME_GENERADO");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String idUsuarioStr = mensajeUser.getArgs().get(1);
+                            java.time.LocalDate fechaDesde = java.time.LocalDate.parse(mensajeUser.getArgs().get(2));
+                            java.time.LocalDate fechaHasta = java.time.LocalDate.parse(mensajeUser.getArgs().get(3));
+                            String rutaDestino = mensajeUser.getArgs().get(4);
+
+                            Long idUsuarioInforme = idUsuarioStr != null && !idUsuarioStr.equals("null") ?
+                                Long.valueOf(idUsuarioStr) : null;
+
+                            String archivoGenerado = informeService.generarInformeEstadisticas(
+                                idGrupo, idUsuarioInforme, fechaDesde, fechaHasta, rutaDestino);
+
+                            mensajeServer.addArg("exito");
+                            mensajeServer.addArg(archivoGenerado);
+                            System.out.println("✅ Informe de estadísticas generado: " + archivoGenerado);
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al generar informe de estadísticas");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "GENERAR_INFORME_RESUMEN":
+                        mensajeServer.setTipo("INFORME_GENERADO");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String idUsuarioStr = mensajeUser.getArgs().get(1);
+                            java.time.LocalDate fechaDesde = java.time.LocalDate.parse(mensajeUser.getArgs().get(2));
+                            java.time.LocalDate fechaHasta = java.time.LocalDate.parse(mensajeUser.getArgs().get(3));
+                            String rutaDestino = mensajeUser.getArgs().get(4);
+                            String observaciones = mensajeUser.getArgs().get(5);
+
+                            Long idUsuarioInforme = idUsuarioStr != null && !idUsuarioStr.equals("null") ?
+                                Long.valueOf(idUsuarioStr) : null;
+
+                            String archivoGenerado = informeService.generarInformeResumen(
+                                idGrupo, idUsuarioInforme, fechaDesde, fechaHasta, rutaDestino, observaciones);
+
+                            mensajeServer.addArg("exito");
+                            mensajeServer.addArg(archivoGenerado);
+                            System.out.println("✅ Informe de resumen generado: " + archivoGenerado);
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al generar informe de resumen");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+
 
                 }
             }

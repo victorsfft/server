@@ -1,29 +1,78 @@
 package com.iesfernandoaguilar.solsonafuentes.dto;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.iesfernandoaguilar.solsonafuentes.model.Evento;
 
 public class EventoDTO {
     private Long idEvento;
     private String titulo;
     private String descripcion;
-    private LocalDateTime fechaInicio;
-    private LocalDateTime fechaFin;
+    private LocalDate fechaInicio;
+    private LocalDate fechaFin;
     private Boolean seRepite;
     private Integer diasRepeticion;
-    private Date fechaCreacion;
+    private LocalDateTime fechaCreacion;
     private Long creadoPorId;
+    private String creadoPorNombre;
     private List<Long> usuariosAsistentesIds;
     private List<Long> departamentosInvitadosIds;
     
     // Constructores
     public EventoDTO() {}
-    
-    public EventoDTO(String titulo, LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+
+    public EventoDTO(String titulo, LocalDate fechaInicio, LocalDate fechaFin) {
         this.titulo = titulo;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
+    }
+
+    // Método para convertir de Evento a EventoDTO
+    public static EventoDTO fromEntity(Evento evento) {
+        if (evento == null) {
+            return null;
+        }
+
+        EventoDTO dto = new EventoDTO();
+        dto.setIdEvento(evento.getIdEvento());
+        dto.setTitulo(evento.getTitulo());
+        dto.setDescripcion(evento.getDescripcion());
+        dto.setFechaInicio(evento.getFechaInicio());
+        dto.setFechaFin(evento.getFechaFin());
+        dto.setSeRepite(evento.getSeRepite());
+        dto.setDiasRepeticion(evento.getDiasRepeticion());
+        dto.setFechaCreacion(evento.getFechaCreacion());
+
+        if (evento.getCreadoPor() != null) {
+            dto.setCreadoPorId(evento.getCreadoPor().getIdUsuario());
+            dto.setCreadoPorNombre(evento.getCreadoPor().getNombre());
+        }
+
+        if (evento.getUsuariosAsistentes() != null) {
+            dto.setUsuariosAsistentesIds(
+                evento.getUsuariosAsistentes().stream()
+                    .map(u -> u.getIdUsuario())
+                    .collect(Collectors.toList())
+            );
+        } else {
+            dto.setUsuariosAsistentesIds(new ArrayList<>());
+        }
+
+        if (evento.getDepartamentosInvitados() != null) {
+            dto.setDepartamentosInvitadosIds(
+                evento.getDepartamentosInvitados().stream()
+                    .map(d -> d.getIdDepartamento())
+                    .collect(Collectors.toList())
+            );
+        } else {
+            dto.setDepartamentosInvitadosIds(new ArrayList<>());
+        }
+
+        return dto;
     }
 
     // Getters y setters...
@@ -51,19 +100,19 @@ public class EventoDTO {
         this.descripcion = descripcion;
     }
 
-    public LocalDateTime getFechaInicio() {
+    public LocalDate getFechaInicio() {
         return fechaInicio;
     }
 
-    public void setFechaInicio(LocalDateTime fechaInicio) {
+    public void setFechaInicio(LocalDate fechaInicio) {
         this.fechaInicio = fechaInicio;
     }
 
-    public LocalDateTime getFechaFin() {
+    public LocalDate getFechaFin() {
         return fechaFin;
     }
 
-    public void setFechaFin(LocalDateTime fechaFin) {
+    public void setFechaFin(LocalDate fechaFin) {
         this.fechaFin = fechaFin;
     }
 
@@ -83,12 +132,20 @@ public class EventoDTO {
         this.diasRepeticion = diasRepeticion;
     }
 
-    public Date getFechaCreacion() {
+    public LocalDateTime getFechaCreacion() {
         return fechaCreacion;
     }
 
-    public void setFechaCreacion(Date fechaCreacion) {
+    public void setFechaCreacion(LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
+    }
+
+    public String getCreadoPorNombre() {
+        return creadoPorNombre;
+    }
+
+    public void setCreadoPorNombre(String creadoPorNombre) {
+        this.creadoPorNombre = creadoPorNombre;
     }
 
     public Long getCreadoPorId() {

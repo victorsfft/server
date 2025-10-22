@@ -34,7 +34,7 @@ public class Comentario {
     @JoinColumn(name = "id_incidencia")
     private Incidencia incidencia;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_usuario", nullable = false)
     private Usuario usuario;
     
