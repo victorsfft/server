@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/victo/OneDrive/Documentos/GitHub/javafx/**)",
-      "Bash(mvn clean package:*)"
+      "Bash(mvn clean package:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(cat:*)",
+      "Read(//c//**)",
+      "Bash(mvn clean compile:*)",
+      "Bash(mvn compile:*)"
     ],
     "deny": [],
     "ask": []

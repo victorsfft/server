@@ -69,6 +69,12 @@ public class Notificacion {
     @Column(nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
+    // --- Constructores ---
+    
+    public Notificacion() {
+        this.fechaCreacion = LocalDateTime.now();
+    }
+
     // --- Getters y Setters ---
 
     public Notificacion(Usuario usuarioDestino, String titulo, TipoNotificacion tipo, Grupo grupo,
@@ -76,12 +82,14 @@ public class Notificacion {
                         EstadoNotificacion estado) {
         this.usuarioDestino = usuarioDestino;
         this.titulo = titulo;
+        this.mensaje = titulo; // Set mensaje to the same value as titulo
         this.tipo = tipo;
         this.grupo = grupo;
         this.usuarioInvitador = usuarioInvitador;
         this.subgrupo = subgrupo;
         this.departamento = departamento;
         this.estado = estado;
+        this.fechaCreacion = LocalDateTime.now();
     }
 
     public Long getIdNotificacion() {

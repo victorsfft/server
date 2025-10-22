@@ -13,6 +13,7 @@ com\iesfernandoaguilar\solsonafuentes\repository\GrupoRepository.class
 com\iesfernandoaguilar\solsonafuentes\dto\IncidenciaDTO.class
 com\iesfernandoaguilar\solsonafuentes\dto\NotificacionDTO.class
 com\iesfernandoaguilar\solsonafuentes\model\Subgrupo.class
+com\iesfernandoaguilar\solsonafuentes\service\IncidenciaService.class
 com\iesfernandoaguilar\solsonafuentes\service\TareaService.class
 com\iesfernandoaguilar\solsonafuentes\enums\Prioridad.class
 com\iesfernandoaguilar\solsonafuentes\service\UsuarioService.class
@@ -32,6 +33,7 @@ com\iesfernandoaguilar\solsonafuentes\enums\Rol.class
 com\iesfernandoaguilar\solsonafuentes\model\SolicitudGrupo.class
 com\iesfernandoaguilar\solsonafuentes\enums\EstadoSolicitud.class
 com\iesfernandoaguilar\solsonafuentes\service\SubgrupoService.class
+com\iesfernandoaguilar\solsonafuentes\repository\IncidenciaRepository.class
 com\iesfernandoaguilar\solsonafuentes\thread\InicioSesionHandler.class
 com\iesfernandoaguilar\solsonafuentes\enums\EstadoNotificacion.class
 com\iesfernandoaguilar\solsonafuentes\dto\GrupoDTO.class

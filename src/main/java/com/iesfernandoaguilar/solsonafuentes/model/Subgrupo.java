@@ -28,11 +28,11 @@ public class Subgrupo {
     private LocalDateTime fechaCreacion;
     
     //Relaciones Many-to-One
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_grupo", nullable = false)
     private Grupo grupo;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "creado_por")
     private Usuario creadoPor;
     

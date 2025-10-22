@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
 import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
+import com.iesfernandoaguilar.solsonafuentes.model.Grupo;
+import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
 import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
 import com.iesfernandoaguilar.solsonafuentes.repository.UsuarioRepository;
 
@@ -20,6 +22,9 @@ public class UsuarioService {
 
     @Autowired
     private DepartamentoService departamentoService;
+
+    @Autowired
+    private GrupoService grupoService;
 
     @Transactional
     public Usuario save(Usuario usuario) {
@@ -77,6 +82,25 @@ public class UsuarioService {
             }
             
             return usuarioRepository.save(usuario);
+        }
+        return null;
+    }
+
+    @Transactional
+    public Usuario asignarUsuarioAGrupo(Long idUsuario, Long idGrupo, Subgrupo subgrupo, Departamento departamento, Rol rol) {
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByIdUsuario(idUsuario);
+        if (usuarioOpt.isPresent()) {
+            Usuario usuario = usuarioOpt.get();
+            
+            Optional<Grupo> grupoOpt = grupoService.findByIdGrupo(idGrupo);
+            if (grupoOpt.isPresent()) {
+                usuario.setGrupo(grupoOpt.get());
+                usuario.setSubgrupo(subgrupo);
+                usuario.setDepartamento(departamento);
+                usuario.setRol(rol);
+                
+                return usuarioRepository.save(usuario);
+            }
         }
         return null;
     }

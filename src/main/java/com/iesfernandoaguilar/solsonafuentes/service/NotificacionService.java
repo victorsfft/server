@@ -1,6 +1,7 @@
 package com.iesfernandoaguilar.solsonafuentes.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,29 @@ public class NotificacionService {
 
     public List<Notificacion> obtenerNotificaciones(Long idUsuario,EstadoNotificacion estado) {
         return notificacionRepository.obtenerNotificaciones(idUsuario,estado);
+    }
+
+    public Optional<Notificacion> findByIdNotificacion(Long idNotificacion) {
+        return notificacionRepository.findByIdNotificacion(idNotificacion);
+    }
+    
+    @Transactional
+    public Notificacion crearOActualizarInvitacion(Notificacion notificacion) {
+        // Buscar si ya existe una invitación para este usuario y grupo
+        Optional<Notificacion> invitacionExistente = notificacionRepository.findInvitacionExistente(
+            notificacion.getUsuarioDestino().getIdUsuario(),
+            notificacion.getGrupo().getIdGrupo()
+        );
+        
+        if (invitacionExistente.isPresent()) {
+            // Si existe, actualizar el estado a PENDIENTE
+            Notificacion notifExistente = invitacionExistente.get();
+            notifExistente.setEstado(EstadoNotificacion.PENDIENTE);
+            return notificacionRepository.save(notifExistente);
+        } else {
+            // Si no existe, crear nueva
+            return notificacionRepository.save(notificacion);
+        }
     }
     
 }

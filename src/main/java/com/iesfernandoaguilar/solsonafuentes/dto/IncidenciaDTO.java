@@ -1,8 +1,12 @@
 package com.iesfernandoaguilar.solsonafuentes.dto;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.iesfernandoaguilar.solsonafuentes.model.Incidencia;
 
 public class IncidenciaDTO {
     private Long idIncidencia;
@@ -105,5 +109,47 @@ public class IncidenciaDTO {
     public void setComentariosIds(List<Long> comentariosIds) {
         this.comentariosIds = comentariosIds;
     }
-    
+
+    // Método para convertir Entity a DTO
+    public static IncidenciaDTO fromEntity(Incidencia incidencia) {
+        if (incidencia == null) return null;
+
+        IncidenciaDTO dto = new IncidenciaDTO();
+        dto.setIdIncidencia(incidencia.getIdIncidencia());
+        dto.setTitulo(incidencia.getTitulo());
+        dto.setDescripcion(incidencia.getDescripcion());
+        dto.setPrioridad(incidencia.getPrioridad() != null ? incidencia.getPrioridad().name() : null);
+        dto.setEstado(incidencia.getEstado() != null ? incidencia.getEstado().name() : null);
+
+        // Convertir LocalDate/LocalDateTime a Date
+        if (incidencia.getFechaInicio() != null) {
+            dto.setFechaInicio(incidencia.getFechaInicio().atStartOfDay());
+        }
+        if (incidencia.getFechaFin() != null) {
+            dto.setFechaFin(incidencia.getFechaFin().atStartOfDay());
+        }
+        if (incidencia.getFechaCreacion() != null) {
+            dto.setFechaCreacion(Date.from(incidencia.getFechaCreacion().atZone(ZoneId.systemDefault()).toInstant()));
+        }
+
+        // Convertir usuario a ID
+        if (incidencia.getUsuario() != null) {
+            dto.setUsuarioId(incidencia.getUsuario().getIdUsuario());
+        }
+
+        // Convertir comentarios a IDs
+        try {
+            if (incidencia.getComentarios() != null && !incidencia.getComentarios().isEmpty()) {
+                dto.setComentariosIds(
+                    incidencia.getComentarios().stream()
+                        .map(comentario -> comentario.getIdComentario())
+                        .collect(Collectors.toList())
+                );
+            }
+        } catch (Exception e) {
+            // Si hay LazyInitializationException, dejamos la lista como null
+        }
+
+        return dto;
+    }
 }

@@ -29,11 +29,11 @@ public class Departamento {
     private LocalDateTime fechaCreacion;
     
     //Relaciones Many-to-One
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_subgrupo", nullable = false)
     private Subgrupo subgrupo;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "creado_por")
     private Usuario creadoPor;
     

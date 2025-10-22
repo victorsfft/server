@@ -6,7 +6,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -20,18 +19,20 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.iesfernandoaguilar.solsonafuentes.Servidor;
 import com.iesfernandoaguilar.solsonafuentes.dto.DepartamentoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.GrupoDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.IncidenciaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.NotificacionDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.SubgrupoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.TareaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.UsuarioDTO;
 import com.iesfernandoaguilar.solsonafuentes.enums.EstadoNotificacion;
-import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
-import com.iesfernandoaguilar.solsonafuentes.enums.TipoNotificacion;
 import com.iesfernandoaguilar.solsonafuentes.enums.EstadoTarea;
 import com.iesfernandoaguilar.solsonafuentes.enums.Prioridad;
+import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
+import com.iesfernandoaguilar.solsonafuentes.enums.TipoNotificacion;
 import com.iesfernandoaguilar.solsonafuentes.model.Comentario;
 import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
 import com.iesfernandoaguilar.solsonafuentes.model.Grupo;
+import com.iesfernandoaguilar.solsonafuentes.model.Incidencia;
 import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
 import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
 import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
@@ -39,6 +40,7 @@ import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
 import com.iesfernandoaguilar.solsonafuentes.service.ComentarioService;
 import com.iesfernandoaguilar.solsonafuentes.service.DepartamentoService;
 import com.iesfernandoaguilar.solsonafuentes.service.GrupoService;
+import com.iesfernandoaguilar.solsonafuentes.service.IncidenciaService;
 import com.iesfernandoaguilar.solsonafuentes.service.NotificacionService;
 import com.iesfernandoaguilar.solsonafuentes.service.SolicitudGrupoService;
 import com.iesfernandoaguilar.solsonafuentes.service.SubgrupoService;
@@ -76,6 +78,7 @@ public class UsuarioHandler implements Runnable{
         DepartamentoService departamentoService = context.getBean(DepartamentoService.class);
         TareaService tareaService = context.getBean(TareaService.class);
         ComentarioService comentarioService = context.getBean(ComentarioService.class);
+        IncidenciaService incidenciaService = context.getBean(IncidenciaService.class);
 
         String nombreEmpresa = "";
         String vatEmpresa = "";
@@ -319,7 +322,8 @@ public class UsuarioHandler implements Runnable{
                                                                         TipoNotificacion.INVITACION_GRUPO, grupo, invitador, 
                                                                         subgrupo, departamento, EstadoNotificacion.PENDIENTE);
 
-                            notificacionService.save(notificacion);
+                            // Crear o actualizar la invitación
+                            notificacionService.crearOActualizarInvitacion(notificacion);
 
                             mensajeServer.addArg("exito");
                         }
@@ -779,7 +783,7 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
-                    case "CREAR_TAREA":
+                    case "CREAR_TAREA_ASIGNACIONES":
                         mensajeServer.setTipo("TAREA_CREADA");
 
                         try {
@@ -952,6 +956,149 @@ public class UsuarioHandler implements Runnable{
                             e.printStackTrace();
                         }
 
+                        enviar(mensajeServer);
+                        break;
+
+                    // ==================== CASOS PARA INCIDENCIAS ====================
+
+                    case "OBTENER_INCIDENCIAS_GRUPO":
+                        mensajeServer.setTipo("DAR_INCIDENCIAS_GRUPO");
+
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<Incidencia> incidenciasGrupo = incidenciaService.obtenerIncidenciasPorGrupo(idGrupo);
+
+                            // Convertir entidades a DTOs
+                            List<IncidenciaDTO> incidenciasDTOs = incidenciasGrupo.stream()
+                                .map(IncidenciaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(incidenciasDTOs);
+                            mensajeServer.addArg(json);
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener incidencias del grupo");
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "CREAR_INCIDENCIA":
+                        mensajeServer.setTipo("INCIDENCIA_CREADA");
+
+                        try {
+                            // Leer argumentos individuales (titulo, descripcion, prioridad, estado, idUsuario)
+                            String titulo = mensajeUser.getArgs().get(0);
+                            String descripcion = mensajeUser.getArgs().get(1);
+                            String prioridad = mensajeUser.getArgs().get(2);
+                            String estado = mensajeUser.getArgs().get(3);
+                            Long idUsuarioIncidencia = Long.valueOf(mensajeUser.getArgs().get(4));
+
+                            Incidencia nuevaIncidencia = new Incidencia();
+                            nuevaIncidencia.setTitulo(titulo);
+                            nuevaIncidencia.setDescripcion(descripcion);
+
+                            if (prioridad != null && !prioridad.isEmpty()) {
+                                nuevaIncidencia.setPrioridad(Prioridad.valueOf(prioridad));
+                            }
+
+                            if (estado != null && !estado.isEmpty()) {
+                                nuevaIncidencia.setEstado(EstadoTarea.valueOf(estado));
+                            }
+
+                            Optional<Usuario> usuarioIncidencia = usuarioService.findByIdUsuario(idUsuarioIncidencia);
+                            usuarioIncidencia.ifPresent(nuevaIncidencia::setUsuario);
+
+                            incidenciaService.crearIncidencia(nuevaIncidencia);
+                            mensajeServer.addArg("creada");
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al crear incidencia: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ELIMINAR_INCIDENCIA":
+                        mensajeServer.setTipo("INCIDENCIA_ELIMINADA");
+
+                        try {
+                            Long idIncidencia = Long.valueOf(mensajeUser.getArgs().get(0));
+                            incidenciaService.eliminarIncidencia(idIncidencia);
+                            mensajeServer.addArg("eliminada");
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al eliminar incidencia: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ACEPTAR_INVITACION":
+                        mensajeServer.setTipo("exito");
+                        try {
+                            Long idNotificacion = Long.valueOf(mensajeUser.getArgs().get(0));
+                            idUsuario = Long.valueOf(mensajeUser.getArgs().get(1));
+                            
+                            var notificacion = notificacionService.findByIdNotificacion(idNotificacion);
+                            if (notificacion.isPresent()) {
+                                Notificacion notif = notificacion.get();
+                                
+                                // Asignar usuario al grupo
+                                usuarioService.asignarUsuarioAGrupo(idUsuario, 
+                                    notif.getGrupo().getIdGrupo(), 
+                                    notif.getGrupo().getSubgrupos().stream().findFirst().orElse(null),
+                                    notif.getDepartamento(),
+                                    Rol.EMPLEADO);
+                                
+                                // Actualizar estado notificación
+                                notif.setEstado(EstadoNotificacion.ACEPTADA);
+                                notificacionService.save(notif);
+                                
+                                mensajeServer.addArg("exito");
+                                System.out.println("✅ Invitación aceptada: Usuario " + idUsuario);
+                            } else {
+                                mensajeServer.addArg("error");
+                                System.err.println("❌ Notificación no encontrada");
+                            }
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error aceptar invitación: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "RECHAZAR_INVITACION":
+                        mensajeServer.setTipo("exito");
+                        try {
+                            Long idNotificacion = Long.valueOf(mensajeUser.getArgs().get(0));
+                            
+                            var notificacion = notificacionService.findByIdNotificacion(idNotificacion);
+                            if (notificacion.isPresent()) {
+                                Notificacion notif = notificacion.get();
+                                
+                                // Actualizar estado notificación
+                                notif.setEstado(EstadoNotificacion.RECHAZADA);
+                                notificacionService.save(notif);
+                                
+                                mensajeServer.addArg("exito");
+                                System.out.println("✅ Invitación rechazada: Notificación " + idNotificacion);
+                            } else {
+                                mensajeServer.addArg("error");
+                                System.err.println("❌ Notificación no encontrada");
+                            }
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error rechazar invitación: " + e.getMessage());
+                            e.printStackTrace();
+                        }
                         enviar(mensajeServer);
                         break;
 

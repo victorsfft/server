@@ -41,7 +41,7 @@ public class Grupo {
     @OneToMany(mappedBy = "grupo", fetch = FetchType.LAZY)
     private List<Usuario> usuarios = new ArrayList<>();
     
-    @OneToMany(mappedBy = "grupo",cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "grupo",cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Subgrupo> subgrupos = new ArrayList<>();
     
     @OneToMany(mappedBy = "grupo", fetch = FetchType.LAZY)
