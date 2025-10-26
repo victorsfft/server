@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.iesfernandoaguilar.solsonafuentes.enums.EstadoTarea;
 import com.iesfernandoaguilar.solsonafuentes.model.Incidencia;
 
 public class IncidenciaDTO {
@@ -119,7 +120,7 @@ public class IncidenciaDTO {
         dto.setTitulo(incidencia.getTitulo());
         dto.setDescripcion(incidencia.getDescripcion());
         dto.setPrioridad(incidencia.getPrioridad() != null ? incidencia.getPrioridad().name() : null);
-        dto.setEstado(incidencia.getEstado() != null ? incidencia.getEstado().name() : null);
+        dto.setEstado(incidencia.getEstado() != null ? incidencia.getEstado().name() : EstadoTarea.PENDIENTE.name());
 
         // Convertir LocalDate/LocalDateTime a Date
         if (incidencia.getFechaInicio() != null) {
