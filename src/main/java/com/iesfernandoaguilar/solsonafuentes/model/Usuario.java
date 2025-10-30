@@ -54,7 +54,11 @@ public class Usuario {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_departamento", nullable = true)
     private Departamento departamento;
-    
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_configuracion_jornada", nullable = true)
+    private ConfiguracionJornada configuracionJornada;
+
     //Relaciones One-to-Many
     @OneToMany(mappedBy = "creadoPor", fetch = FetchType.LAZY)
     private List<Grupo> gruposCreados = new ArrayList<>();
@@ -180,6 +184,14 @@ public class Usuario {
 
     public void setDepartamento(Departamento departamento) {
         this.departamento = departamento;
+    }
+
+    public ConfiguracionJornada getConfiguracionJornada() {
+        return configuracionJornada;
+    }
+
+    public void setConfiguracionJornada(ConfiguracionJornada configuracionJornada) {
+        this.configuracionJornada = configuracionJornada;
     }
 
     public List<Grupo> getGruposCreados() {

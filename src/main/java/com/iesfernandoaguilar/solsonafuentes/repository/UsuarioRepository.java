@@ -36,4 +36,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
             "LOWER(d.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')) OR " +
             "LOWER(s.nombre) LIKE LOWER(CONCAT('%', :filtro, '%')))")
     List<Usuario> buscarEmpleados(@Param("idGrupo") Long idGrupo, @Param("filtro") String filtro);
+
+    @Query("SELECT COUNT(u) FROM Usuario u WHERE u.configuracionJornada.idConfig = :idConfig")
+    long countByConfiguracionJornadaId(@Param("idConfig") Long idConfig);
 }

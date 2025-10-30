@@ -2,6 +2,7 @@ package com.iesfernandoaguilar.solsonafuentes.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +36,13 @@ public class Evento {
     
     @Column(name = "fecha_fin", nullable = false)
     private LocalDate fechaFin;
-    
+
+    @Column(name = "hora_inicio")
+    private LocalTime horaInicio;
+
+    @Column(name = "hora_fin")
+    private LocalTime horaFin;
+
     @Column(name = "se_repite")
     private Boolean seRepite = false;
     
@@ -110,6 +117,22 @@ public class Evento {
 
     public void setFechaFin(LocalDate fechaFin) {
         this.fechaFin = fechaFin;
+    }
+
+    public LocalTime getHoraInicio() {
+        return horaInicio;
+    }
+
+    public void setHoraInicio(LocalTime horaInicio) {
+        this.horaInicio = horaInicio;
+    }
+
+    public LocalTime getHoraFin() {
+        return horaFin;
+    }
+
+    public void setHoraFin(LocalTime horaFin) {
+        this.horaFin = horaFin;
     }
 
     public Boolean getSeRepite() {

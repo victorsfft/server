@@ -6,6 +6,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -18,14 +20,16 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.iesfernandoaguilar.solsonafuentes.Servidor;
 import com.iesfernandoaguilar.solsonafuentes.dto.ComentarioDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.ConfiguracionJornadaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.DepartamentoDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.DescansoJornadaDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO;
+import com.iesfernandoaguilar.solsonafuentes.dto.EstadisticaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.EventoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.GrupoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.HistorialDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.IncidenciaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.JornadaLaboralDTO;
-import com.iesfernandoaguilar.solsonafuentes.dto.DescansoJornadaDTO;
-import com.iesfernandoaguilar.solsonafuentes.dto.EstadisticaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.NotificacionDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.SubgrupoDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.TareaDTO;
@@ -37,9 +41,36 @@ import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
 import com.iesfernandoaguilar.solsonafuentes.enums.TipoAccionHistorial;
 import com.iesfernandoaguilar.solsonafuentes.enums.TipoDescanso;
 import com.iesfernandoaguilar.solsonafuentes.enums.TipoNotificacion;
-import com.iesfernandoaguilar.solsonafuentes.model.*;
-import com.iesfernandoaguilar.solsonafuentes.service.*;
-import java.time.LocalTime;
+import com.iesfernandoaguilar.solsonafuentes.model.Comentario;
+import com.iesfernandoaguilar.solsonafuentes.model.ConfiguracionJornada;
+import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
+import com.iesfernandoaguilar.solsonafuentes.model.DescansoJornada;
+import com.iesfernandoaguilar.solsonafuentes.model.Estadistica;
+import com.iesfernandoaguilar.solsonafuentes.model.Evento;
+import com.iesfernandoaguilar.solsonafuentes.model.Grupo;
+import com.iesfernandoaguilar.solsonafuentes.model.Historial;
+import com.iesfernandoaguilar.solsonafuentes.model.Incidencia;
+import com.iesfernandoaguilar.solsonafuentes.model.JornadaLaboral;
+import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
+import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
+import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
+import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
+import com.iesfernandoaguilar.solsonafuentes.service.ComentarioService;
+import com.iesfernandoaguilar.solsonafuentes.service.ConfiguracionJornadaService;
+import com.iesfernandoaguilar.solsonafuentes.service.DepartamentoService;
+import com.iesfernandoaguilar.solsonafuentes.service.DescansoJornadaService;
+import com.iesfernandoaguilar.solsonafuentes.service.EstadisticaService;
+import com.iesfernandoaguilar.solsonafuentes.service.EventoService;
+import com.iesfernandoaguilar.solsonafuentes.service.GrupoService;
+import com.iesfernandoaguilar.solsonafuentes.service.HistorialService;
+import com.iesfernandoaguilar.solsonafuentes.service.IncidenciaService;
+import com.iesfernandoaguilar.solsonafuentes.service.InformeService;
+import com.iesfernandoaguilar.solsonafuentes.service.JornadaLaboralService;
+import com.iesfernandoaguilar.solsonafuentes.service.NotificacionService;
+import com.iesfernandoaguilar.solsonafuentes.service.SolicitudGrupoService;
+import com.iesfernandoaguilar.solsonafuentes.service.SubgrupoService;
+import com.iesfernandoaguilar.solsonafuentes.service.TareaService;
+import com.iesfernandoaguilar.solsonafuentes.service.UsuarioService;
 import com.iesfernandoaguilar.solsonafuentes.util.MakeAbstractRequest;
 import com.iesfernandoaguilar.solsonafuentes.util.Mensaje;
 import com.iesfernandoaguilar.solsonafuentes.util.Serializador;
@@ -79,6 +110,7 @@ public class UsuarioHandler implements Runnable{
         DescansoJornadaService descansoJornadaService = context.getBean(DescansoJornadaService.class);
         EstadisticaService estadisticaService = context.getBean(EstadisticaService.class);
         InformeService informeService = context.getBean(InformeService.class);
+        ConfiguracionJornadaService configuracionJornadaService = context.getBean(ConfiguracionJornadaService.class);
 
         String nombreEmpresa = "";
         String vatEmpresa = "";
@@ -585,12 +617,14 @@ public class UsuarioHandler implements Runnable{
                         String nuevoRol = mensajeUser.getArgs().get(1);
                         Long nuevoDeptId = mensajeUser.getArgs().get(2).isEmpty() ? null
                                 : Long.valueOf(mensajeUser.getArgs().get(2));
+                        Long nuevaConfigJornadaId = (mensajeUser.getArgs().size() > 3 && !mensajeUser.getArgs().get(3).isEmpty())
+                                ? Long.valueOf(mensajeUser.getArgs().get(3)) : null;
 
-                        Usuario empActualizado = usuarioService.actualizarEmpleado(idUsuarioAct, nuevoRol, nuevoDeptId);
+                        Usuario empActualizado = usuarioService.actualizarEmpleado(idUsuarioAct, nuevoRol, nuevoDeptId, nuevaConfigJornadaId);
 
                         if (empActualizado != null) {
                             mensajeServer.addArg("actualizado");
-                            System.out.println("✅ Empleado actualizado");
+                            System.out.println("✅ Empleado actualizado (Rol: " + nuevoRol + ", ConfigJornada: " + nuevaConfigJornadaId + ")");
                         } else {
                             mensajeServer.addArg("error");
                         }
@@ -1256,6 +1290,8 @@ public class UsuarioHandler implements Runnable{
                                 nuevoEvento.setDescripcion(descripcionEvento);
                                 nuevoEvento.setFechaInicio(fechaInicio.toLocalDate());
                                 nuevoEvento.setFechaFin(fechaFin.toLocalDate());
+                                nuevoEvento.setHoraInicio(fechaInicio.toLocalTime());
+                                nuevoEvento.setHoraFin(fechaFin.toLocalTime());
                                 nuevoEvento.setSeRepite(seRepite);
                                 nuevoEvento.setDiasRepeticion(diasRepeticion);
                                 nuevoEvento.setCreadoPor(usuarioOpt.get());
@@ -1813,6 +1849,332 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
+                    // ==================== CONFIGURACIÓN JORNADA HANDLERS ====================
+
+                    case "CREAR_CONFIGURACION_JORNADA":
+                        mensajeServer.setTipo("CONFIGURACION_JORNADA_CREADA");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String nombreConfig = mensajeUser.getArgs().get(1);
+                            String fechaInicioStr = mensajeUser.getArgs().get(2);
+                            String fechaFinStr = mensajeUser.getArgs().get(3);
+                            String horariosJson = mensajeUser.getArgs().get(4);
+
+                            // Parsear fechas
+                            java.time.LocalDate fechaInicio = java.time.LocalDate.parse(fechaInicioStr);
+                            java.time.LocalDate fechaFin = java.time.LocalDate.parse(fechaFinStr);
+
+                            // Deserializar horarios usando Gson
+                            com.google.gson.Gson gson = new com.google.gson.Gson();
+                            com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>> typeToken =
+                                new com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>>() {};
+                            List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO> horariosDTOs =
+                                gson.fromJson(horariosJson, typeToken.getType());
+
+                            // Convertir DTOs a entidades
+                            List<com.iesfernandoaguilar.solsonafuentes.model.HorarioDia> horarios = new ArrayList<>();
+                            if (horariosDTOs != null) {
+                                for (com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO dto : horariosDTOs) {
+                                    horarios.add(dto.toEntity());
+                                }
+                            }
+
+                            // Crear configuración
+                            ConfiguracionJornada configuracion = configuracionJornadaService.crearConfiguracion(
+                                nombreConfig, fechaInicio, fechaFin, idGrupo, null, horarios
+                            );
+
+                            mensajeServer.addArg(configuracion.getIdConfig().toString());
+                            mensajeServer.addArg("creada");
+                            System.out.println("✅ Configuración creada: " + nombreConfig);
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            mensajeServer.addArg(e.getMessage());
+                            System.err.println("❌ Error al crear configuración: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ACTUALIZAR_CONFIGURACION_JORNADA":
+                        mensajeServer.setTipo("CONFIGURACION_JORNADA_ACTUALIZADA");
+                        try {
+                            Long idConfig = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String nombreConfig = mensajeUser.getArgs().get(1);
+                            String fechaInicioStr = mensajeUser.getArgs().get(2);
+                            String fechaFinStr = mensajeUser.getArgs().get(3);
+                            String horariosJson = mensajeUser.getArgs().get(4);
+
+                            // Parsear fechas
+                            java.time.LocalDate fechaInicio = java.time.LocalDate.parse(fechaInicioStr);
+                            java.time.LocalDate fechaFin = java.time.LocalDate.parse(fechaFinStr);
+
+                            // Deserializar horarios usando Gson
+                            com.google.gson.Gson gson = new com.google.gson.Gson();
+                            com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>> typeToken =
+                                new com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>>() {};
+                            List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO> horariosDTOs =
+                                gson.fromJson(horariosJson, typeToken.getType());
+
+                            // Convertir DTOs a entidades
+                            List<com.iesfernandoaguilar.solsonafuentes.model.HorarioDia> horarios = new ArrayList<>();
+                            if (horariosDTOs != null) {
+                                for (com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO dto : horariosDTOs) {
+                                    horarios.add(dto.toEntity());
+                                }
+                            }
+
+                            // Actualizar configuración
+                            ConfiguracionJornada configuracion = configuracionJornadaService.actualizarConfiguracion(
+                                idConfig, nombreConfig, fechaInicio, fechaFin, horarios
+                            );
+
+                            mensajeServer.addArg(configuracion.getIdConfig().toString());
+                            mensajeServer.addArg("actualizada");
+                            System.out.println("✅ Configuración actualizada: " + nombreConfig);
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            mensajeServer.addArg(e.getMessage());
+                            System.err.println("❌ Error al actualizar configuración: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_CONFIGURACIONES_JORNADA":
+                        mensajeServer.setTipo("DAR_CONFIGURACIONES_JORNADA");
+                        try {
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String soloActivas = mensajeUser.getArgs().size() > 1 ? mensajeUser.getArgs().get(1) : "false";
+
+                            List<ConfiguracionJornada> configuraciones = Boolean.parseBoolean(soloActivas)
+                                ? configuracionJornadaService.obtenerConfiguracionesActivas(idGrupo)
+                                : configuracionJornadaService.obtenerConfiguracionesPorGrupo(idGrupo);
+
+                            List<ConfiguracionJornadaDTO> configsDTOs = configuraciones.stream()
+                                .map(ConfiguracionJornadaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            mapper.registerModule(new JavaTimeModule());
+                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            mapper.setSerializationInclusion(Include.NON_NULL);
+
+                            json = mapper.writeValueAsString(configsDTOs);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Configuraciones obtenidas: " + configsDTOs.size());
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al obtener configuraciones");
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ELIMINAR_CONFIGURACION_JORNADA":
+                        mensajeServer.setTipo("CONFIGURACION_JORNADA_ELIMINADA");
+                        try {
+                            Long idConfig = Long.valueOf(mensajeUser.getArgs().get(0));
+                            configuracionJornadaService.eliminarConfiguracion(idConfig);
+                            mensajeServer.addArg("eliminada");
+                            System.out.println("✅ Configuración eliminada: " + idConfig);
+                        } catch (IllegalStateException e) {
+                            mensajeServer.addArg("tiene_usuarios");
+                            System.err.println("❌ " + e.getMessage());
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al eliminar configuración: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ACTUALIZAR_TAREA":
+                        mensajeServer.setTipo("TAREA_ACTUALIZADA");
+                        try {
+                            Long idTarea = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String titulo = mensajeUser.getArgs().get(1);
+                            String descripcion = mensajeUser.getArgs().get(2);
+                            String prioridadStr = mensajeUser.getArgs().get(3);
+                            String fechaFinStr = mensajeUser.getArgs().get(4);
+
+                            // Parámetros opcionales para asignaciones (compatibilidad con versiones antiguas)
+                            String usuariosStr = "";
+                            String departamentosStr = "";
+
+                            if (mensajeUser.getArgs().size() > 5) {
+                                usuariosStr = mensajeUser.getArgs().get(5);
+                            }
+                            if (mensajeUser.getArgs().size() > 6) {
+                                departamentosStr = mensajeUser.getArgs().get(6);
+                            }
+
+                            Optional<Tarea> tareaOpt = tareaService.findByIdTarea(idTarea);
+                            if (tareaOpt.isPresent()) {
+                                Tarea tarea = tareaOpt.get();
+                                tarea.setTitulo(titulo);
+                                tarea.setDescripcion(descripcion);
+                                tarea.setPrioridad(Prioridad.valueOf(prioridadStr.toUpperCase()));
+
+                                if (fechaFinStr != null && !fechaFinStr.isEmpty()) {
+                                    tarea.setFechaFin(java.time.LocalDate.parse(fechaFinStr));
+                                } else {
+                                    tarea.setFechaFin(null);
+                                }
+
+                                // Limpiar asignaciones actuales
+                                tarea.getUsuariosAsignados().clear();
+                                tarea.getDepartamentosAsignados().clear();
+
+                                // Asignar nuevos usuarios
+                                if (usuariosStr != null && !usuariosStr.isEmpty()) {
+                                    String[] idsUsuarios = usuariosStr.split(",");
+                                    for (String idUsuarioStr : idsUsuarios) {
+                                        if (!idUsuarioStr.trim().isEmpty()) {
+                                            Long idUsuarioAsignado = Long.valueOf(idUsuarioStr.trim());
+                                            usuarioService.findByIdUsuario(idUsuarioAsignado).ifPresent(
+                                                usuario -> tarea.getUsuariosAsignados().add(usuario)
+                                            );
+                                        }
+                                    }
+                                }
+
+                                // Asignar nuevos departamentos
+                                if (departamentosStr != null && !departamentosStr.isEmpty()) {
+                                    String[] idsDepartamentos = departamentosStr.split(",");
+                                    for (String idDeptStr : idsDepartamentos) {
+                                        if (!idDeptStr.trim().isEmpty()) {
+                                            Long idDeptAsignado = Long.valueOf(idDeptStr.trim());
+                                            departamentoService.findByIdDepartamento(idDeptAsignado).ifPresent(
+                                                dept -> tarea.getDepartamentosAsignados().add(dept)
+                                            );
+                                        }
+                                    }
+                                }
+
+                                Tarea tareaActualizada = tareaService.actualizarTarea(tarea);
+                                if (tareaActualizada != null) {
+                                    mensajeServer.addArg("actualizada");
+                                    System.out.println("✅ Tarea actualizada: " + titulo);
+                                } else {
+                                    mensajeServer.addArg("error");
+                                }
+                            } else {
+                                mensajeServer.addArg("no_encontrada");
+                            }
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al actualizar tarea: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ELIMINAR_EVENTO":
+                        mensajeServer.setTipo("EVENTO_ELIMINADO");
+                        try {
+                            Long idEvento = Long.valueOf(mensajeUser.getArgs().get(0));
+                            eventoService.eliminarEvento(idEvento);
+                            mensajeServer.addArg("eliminado");
+                            System.out.println("✅ Evento eliminado: " + idEvento);
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al eliminar evento: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ACTUALIZAR_EVENTO":
+                        mensajeServer.setTipo("EVENTO_ACTUALIZADO");
+                        try {
+                            Long idEvento = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String tituloEvento = mensajeUser.getArgs().get(1);
+                            String descripcionEvento = mensajeUser.getArgs().get(2);
+                            String fechaInicioStr = mensajeUser.getArgs().get(3);
+                            String fechaFinStr = mensajeUser.getArgs().get(4);
+
+                            // Parámetros opcionales (para compatibilidad con versión simple)
+                            Boolean seRepite = false;
+                            Integer diasRepeticion = 0;
+                            List<Long> usuariosIds = new ArrayList<>();
+                            List<Long> departamentosIds = new ArrayList<>();
+
+                            // Si hay más argumentos, procesarlos
+                            if (mensajeUser.getArgs().size() > 5) {
+                                seRepite = Boolean.valueOf(mensajeUser.getArgs().get(5));
+                                diasRepeticion = Integer.valueOf(mensajeUser.getArgs().get(6));
+                                String usuariosJson = mensajeUser.getArgs().get(7);
+                                String departamentosJson = mensajeUser.getArgs().get(8);
+
+                                // Parsear listas de IDs
+                                usuariosIds = mapper.readValue(usuariosJson,
+                                    mapper.getTypeFactory().constructCollectionType(List.class, Long.class));
+                                departamentosIds = mapper.readValue(departamentosJson,
+                                    mapper.getTypeFactory().constructCollectionType(List.class, Long.class));
+                            }
+
+                            Optional<Evento> eventoOpt = eventoService.findByIdEvento(idEvento);
+                            if (eventoOpt.isPresent()) {
+                                Evento evento = eventoOpt.get();
+                                evento.setTitulo(tituloEvento);
+                                evento.setDescripcion(descripcionEvento);
+
+                                // Parsear fechas - pueden venir en formato ISO DateTime o solo fecha
+                                evento.setFechaInicio(parseFecha(fechaInicioStr));
+                                evento.setFechaFin(parseFecha(fechaFinStr));
+
+                                // Parsear horas si vienen en formato ISO DateTime
+                                if (fechaInicioStr.contains("T")) {
+                                    java.time.LocalDateTime fechaInicioDateTime = java.time.LocalDateTime.parse(fechaInicioStr);
+                                    java.time.LocalDateTime fechaFinDateTime = java.time.LocalDateTime.parse(fechaFinStr);
+                                    evento.setHoraInicio(fechaInicioDateTime.toLocalTime());
+                                    evento.setHoraFin(fechaFinDateTime.toLocalTime());
+                                } else {
+                                    evento.setHoraInicio(null);
+                                    evento.setHoraFin(null);
+                                }
+
+                                evento.setSeRepite(seRepite);
+                                evento.setDiasRepeticion(diasRepeticion);
+
+                                // Solo actualizar asignaciones si se proporcionaron
+                                if (mensajeUser.getArgs().size() > 5) {
+                                    // Limpiar asignaciones actuales
+                                    evento.getUsuariosAsistentes().clear();
+                                    evento.getDepartamentosInvitados().clear();
+
+                                    // Asignar nuevos usuarios
+                                    for (Long idUsuarioAsignado : usuariosIds) {
+                                        usuarioService.findByIdUsuario(idUsuarioAsignado).ifPresent(
+                                            usuario -> evento.getUsuariosAsistentes().add(usuario)
+                                        );
+                                    }
+
+                                    // Asignar nuevos departamentos
+                                    for (Long idDept : departamentosIds) {
+                                        departamentoService.findByIdDepartamento(idDept).ifPresent(
+                                            dept -> evento.getDepartamentosInvitados().add(dept)
+                                        );
+                                    }
+                                }
+
+                                Evento eventoActualizado = eventoService.actualizarEvento(evento);
+                                if (eventoActualizado != null) {
+                                    mensajeServer.addArg("actualizado");
+                                    System.out.println("✅ Evento actualizado: " + tituloEvento);
+                                } else {
+                                    mensajeServer.addArg("error");
+                                }
+                            } else {
+                                mensajeServer.addArg("no_encontrado");
+                            }
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al actualizar evento: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
 
 
                 }
@@ -1839,6 +2201,23 @@ public class UsuarioHandler implements Runnable{
         return MakeAbstractRequest.makeAbstractRequest(cif);
     }
 
- 
-    
+    /**
+     * Parsea una cadena de fecha que puede venir en formato ISO DateTime (2025-10-26T00:00:00)
+     * o solo fecha (2025-10-26) y retorna un LocalDate.
+     */
+    private java.time.LocalDate parseFecha(String fechaStr) {
+        if (fechaStr == null || fechaStr.isEmpty()) {
+            return null;
+        }
+
+        // Si contiene 'T', es formato ISO DateTime - extraer solo la fecha
+        if (fechaStr.contains("T")) {
+            return java.time.LocalDate.parse(fechaStr.substring(0, 10));
+        }
+
+        // Caso contrario, parsear directamente como fecha
+        return java.time.LocalDate.parse(fechaStr);
+    }
+
+
 }

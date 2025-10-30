@@ -2,6 +2,9 @@ package com.iesfernandoaguilar.solsonafuentes.dto;
 
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.iesfernandoaguilar.solsonafuentes.model.ConfiguracionJornada;
 
 public class ConfiguracionJornadaDTO {
     private Long idConfig;
@@ -103,5 +106,35 @@ public class ConfiguracionJornadaDTO {
     public void setJornadasLaboralesIds(List<Long> jornadasLaboralesIds) {
         this.jornadasLaboralesIds = jornadasLaboralesIds;
     }
-    
+
+    // Método fromEntity
+    public static ConfiguracionJornadaDTO fromEntity(ConfiguracionJornada configuracion) {
+        ConfiguracionJornadaDTO dto = new ConfiguracionJornadaDTO();
+        dto.setIdConfig(configuracion.getIdConfig());
+        dto.setNombreConfig(configuracion.getNombreConfig());
+        dto.setEstado(configuracion.getEstado() != null ? configuracion.getEstado().name() : null);
+        dto.setFechaInicio(configuracion.getFechaInicio() != null
+            ? java.sql.Date.valueOf(configuracion.getFechaInicio()) : null);
+        dto.setFechaFin(configuracion.getFechaFin() != null
+            ? java.sql.Date.valueOf(configuracion.getFechaFin()) : null);
+        dto.setFechaCreacion(configuracion.getFechaCreacion() != null
+            ? java.sql.Timestamp.valueOf(configuracion.getFechaCreacion()) : null);
+        dto.setGrupoId(configuracion.getGrupo() != null ? configuracion.getGrupo().getIdGrupo() : null);
+        dto.setCreadoPorId(configuracion.getCreadoPor() != null ? configuracion.getCreadoPor().getIdUsuario() : null);
+
+        if (configuracion.getHorarios() != null) {
+            dto.setHorariosIds(configuracion.getHorarios().stream()
+                .map(h -> h.getIdDia())
+                .collect(Collectors.toList()));
+        }
+
+        if (configuracion.getJornadasLaborales() != null) {
+            dto.setJornadasLaboralesIds(configuracion.getJornadasLaborales().stream()
+                .map(j -> j.getIdJornada())
+                .collect(Collectors.toList()));
+        }
+
+        return dto;
+    }
+
 }

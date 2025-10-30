@@ -46,12 +46,15 @@ C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoag
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Usuario.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\AnotacionesRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\ComentarioRepository.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\ConfiguracionJornadaRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\DepartamentoRepository.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\DescansoDiaRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\DescansoJornadaRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\EstadisticaRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\EventoRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\GrupoRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\HistorialRepository.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\HorarioDiaRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\IncidenciaRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\JornadaLaboralRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\NotificacionRepository.java
@@ -61,6 +64,7 @@ C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoag
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\UsuarioRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\AnotacionesService.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\ComentarioService.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\ConfiguracionJornadaService.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\DepartamentoService.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\DescansoJornadaService.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\EstadisticaService.java

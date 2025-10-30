@@ -2,6 +2,7 @@ package com.iesfernandoaguilar.solsonafuentes.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,6 +15,8 @@ public class EventoDTO {
     private String descripcion;
     private LocalDate fechaInicio;
     private LocalDate fechaFin;
+    private LocalTime horaInicio;
+    private LocalTime horaFin;
     private Boolean seRepite;
     private Integer diasRepeticion;
     private LocalDateTime fechaCreacion;
@@ -43,6 +46,8 @@ public class EventoDTO {
         dto.setDescripcion(evento.getDescripcion());
         dto.setFechaInicio(evento.getFechaInicio());
         dto.setFechaFin(evento.getFechaFin());
+        dto.setHoraInicio(evento.getHoraInicio());
+        dto.setHoraFin(evento.getHoraFin());
         dto.setSeRepite(evento.getSeRepite());
         dto.setDiasRepeticion(evento.getDiasRepeticion());
         dto.setFechaCreacion(evento.getFechaCreacion());
@@ -114,6 +119,22 @@ public class EventoDTO {
 
     public void setFechaFin(LocalDate fechaFin) {
         this.fechaFin = fechaFin;
+    }
+
+    public LocalTime getHoraInicio() {
+        return horaInicio;
+    }
+
+    public void setHoraInicio(LocalTime horaInicio) {
+        this.horaInicio = horaInicio;
+    }
+
+    public LocalTime getHoraFin() {
+        return horaFin;
+    }
+
+    public void setHoraFin(LocalTime horaFin) {
+        this.horaFin = horaFin;
     }
 
     public Boolean getSeRepite() {

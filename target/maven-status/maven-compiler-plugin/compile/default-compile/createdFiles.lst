@@ -11,6 +11,7 @@ com\iesfernandoaguilar\solsonafuentes\repository\SolicitudGrupoRepository.class
 com\iesfernandoaguilar\solsonafuentes\service\EventoService.class
 com\iesfernandoaguilar\solsonafuentes\model\Tarea.class
 com\iesfernandoaguilar\solsonafuentes\dto\ComentarioDTO.class
+com\iesfernandoaguilar\solsonafuentes\service\ConfiguracionJornadaService.class
 com\iesfernandoaguilar\solsonafuentes\service\GrupoService.class
 com\iesfernandoaguilar\solsonafuentes\util\Mensaje.class
 com\iesfernandoaguilar\solsonafuentes\enums\DiaSemana.class
@@ -24,6 +25,7 @@ com\iesfernandoaguilar\solsonafuentes\model\Subgrupo.class
 com\iesfernandoaguilar\solsonafuentes\repository\AnotacionesRepository.class
 com\iesfernandoaguilar\solsonafuentes\service\IncidenciaService.class
 com\iesfernandoaguilar\solsonafuentes\service\TareaService.class
+com\iesfernandoaguilar\solsonafuentes\thread\UsuarioHandler$2.class
 com\iesfernandoaguilar\solsonafuentes\enums\Prioridad.class
 com\iesfernandoaguilar\solsonafuentes\service\UsuarioService.class
 com\iesfernandoaguilar\solsonafuentes\Servidor.class
@@ -36,6 +38,8 @@ com\iesfernandoaguilar\solsonafuentes\service\NotificacionService.class
 com\iesfernandoaguilar\solsonafuentes\repository\ComentarioRepository.class
 com\iesfernandoaguilar\solsonafuentes\model\Anotaciones.class
 com\iesfernandoaguilar\solsonafuentes\model\Estadistica.class
+com\iesfernandoaguilar\solsonafuentes\repository\ConfiguracionJornadaRepository.class
+com\iesfernandoaguilar\solsonafuentes\repository\DescansoDiaRepository.class
 com\iesfernandoaguilar\solsonafuentes\enums\TipoDescanso.class
 com\iesfernandoaguilar\solsonafuentes\dto\AnotacionesDTO.class
 com\iesfernandoaguilar\solsonafuentes\enums\TipoAccionHistorial.class
@@ -45,6 +49,7 @@ com\iesfernandoaguilar\solsonafuentes\enums\Rol.class
 com\iesfernandoaguilar\solsonafuentes\model\SolicitudGrupo.class
 com\iesfernandoaguilar\solsonafuentes\enums\EstadoSolicitud.class
 com\iesfernandoaguilar\solsonafuentes\service\SubgrupoService.class
+com\iesfernandoaguilar\solsonafuentes\thread\UsuarioHandler$1.class
 com\iesfernandoaguilar\solsonafuentes\repository\IncidenciaRepository.class
 com\iesfernandoaguilar\solsonafuentes\thread\InicioSesionHandler.class
 com\iesfernandoaguilar\solsonafuentes\repository\HistorialRepository.class
@@ -59,6 +64,7 @@ com\iesfernandoaguilar\solsonafuentes\service\ComentarioService.class
 com\iesfernandoaguilar\solsonafuentes\dto\EstadisticaDTO.class
 com\iesfernandoaguilar\solsonafuentes\enums\EstadoJornada.class
 com\iesfernandoaguilar\solsonafuentes\dto\UsuarioDTO.class
+com\iesfernandoaguilar\solsonafuentes\repository\HorarioDiaRepository.class
 com\iesfernandoaguilar\solsonafuentes\dto\HorarioDiaDTO.class
 com\iesfernandoaguilar\solsonafuentes\repository\EventoRepository.class
 com\iesfernandoaguilar\solsonafuentes\dto\DepartamentoDTO.class
@@ -74,6 +80,7 @@ com\iesfernandoaguilar\solsonafuentes\repository\NotificacionRepository.class
 com\iesfernandoaguilar\solsonafuentes\model\ConfiguracionJornada.class
 com\iesfernandoaguilar\solsonafuentes\model\Departamento.class
 com\iesfernandoaguilar\solsonafuentes\model\Notificacion.class
+com\iesfernandoaguilar\solsonafuentes\dto\HorarioDiaDTO$DescansoDTO.class
 com\iesfernandoaguilar\solsonafuentes\service\EstadisticaService.class
 com\iesfernandoaguilar\solsonafuentes\dto\DescansoDiaDTO.class
 com\iesfernandoaguilar\solsonafuentes\dto\JornadaLaboralDTO.class
@@ -81,4 +88,5 @@ com\iesfernandoaguilar\solsonafuentes\model\Evento.class
 com\iesfernandoaguilar\solsonafuentes\model\HorarioDia.class
 com\iesfernandoaguilar\solsonafuentes\util\SecureUtils.class
 com\iesfernandoaguilar\solsonafuentes\enums\TipoNotificacion.class
+com\iesfernandoaguilar\solsonafuentes\service\ConfiguracionJornadaService$1.class
 com\iesfernandoaguilar\solsonafuentes\thread\UsuarioHandler.class
