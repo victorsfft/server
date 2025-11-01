@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -1723,7 +1724,23 @@ public class UsuarioHandler implements Runnable{
                         mensajeServer.setTipo("DAR_ESTADISTICAS_GRUPO");
                         try {
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
-                            List<Estadistica> estadisticas = estadisticaService.obtenerUltimasEstadisticasUsuariosDelGrupo(idGrupo);
+                            String fechaDesdeStr = mensajeUser.getArgs().size() > 1 ? mensajeUser.getArgs().get(1) : "";
+                            String fechaHastaStr = mensajeUser.getArgs().size() > 2 ? mensajeUser.getArgs().get(2) : "";
+
+                            List<Estadistica> estadisticas;
+
+                            // Si se especifican fechas, usar rango; si no, usar últimas estadísticas
+                            if (fechaDesdeStr != null && !fechaDesdeStr.isEmpty() &&
+                                fechaHastaStr != null && !fechaHastaStr.isEmpty()) {
+                                LocalDate fechaDesde = LocalDate.parse(fechaDesdeStr);
+                                LocalDate fechaHasta = LocalDate.parse(fechaHastaStr);
+                                estadisticas = estadisticaService.obtenerEstadisticasGrupoPorRango(idGrupo, fechaDesde, fechaHasta);
+                                System.out.println("📊 Obteniendo estadísticas de grupo con rango: " + fechaDesde + " a " + fechaHasta);
+                            } else {
+                                estadisticas = estadisticaService.obtenerUltimasEstadisticasUsuariosDelGrupo(idGrupo);
+                                System.out.println("📊 Obteniendo últimas estadísticas de usuarios del grupo");
+                            }
+
                             List<EstadisticaDTO> estadisticasDTOs = estadisticas.stream()
                                 .map(EstadisticaDTO::fromEntity)
                                 .collect(Collectors.toList());
@@ -1734,10 +1751,39 @@ public class UsuarioHandler implements Runnable{
 
                             json = mapper.writeValueAsString(estadisticasDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Estadísticas de grupo obtenidas");
+                            System.out.println("✅ Estadísticas de grupo obtenidas: " + estadisticas.size() + " registros");
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener estadísticas de grupo");
                             e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+                    case "ACTUALIZAR_ESTADISTICAS":
+                        // Alias para ACTUALIZAR_ESTADISTICAS_USUARIO, acepta idUsuario e idGrupo pero solo usa idUsuario
+                        mensajeServer.setTipo("ESTADISTICAS_ACTUALIZADAS");
+                        try {
+                            Long idUsuarioActualizar = Long.valueOf(mensajeUser.getArgs().get(0));
+                            // idGrupo se recibe pero no se usa actualmente
+                            usuarioOpt = usuarioService.findByIdUsuario(idUsuarioActualizar);
+                            if (usuarioOpt.isPresent()) {
+                                Estadistica estadistica = estadisticaService.actualizarEstadisticasUsuario(usuarioOpt.get());
+
+                                mapper.registerModule(new JavaTimeModule());
+                                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                                mapper.setSerializationInclusion(Include.NON_NULL);
+
+                                json = mapper.writeValueAsString(EstadisticaDTO.fromEntity(estadistica));
+                                mensajeServer.addArg("exito");
+                                mensajeServer.addArg(json);
+                                System.out.println("✅ Estadísticas actualizadas (desde ACTUALIZAR_ESTADISTICAS)");
+                            } else {
+                                mensajeServer.addArg("error");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ Error al actualizar estadísticas");
+                            e.printStackTrace();
+                            mensajeServer.addArg("error");
                         }
                         enviar(mensajeServer);
                         break;

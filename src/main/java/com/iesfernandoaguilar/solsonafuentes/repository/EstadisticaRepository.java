@@ -15,23 +15,23 @@ import com.iesfernandoaguilar.solsonafuentes.model.Estadistica;
 public interface EstadisticaRepository extends JpaRepository<Estadistica, Long> {
 
     // Obtener estadística por usuario
-    @Query("SELECT e FROM Estadistica e WHERE e.usuario.idUsuario = :idUsuario ORDER BY e.fecha DESC")
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.usuario.idUsuario = :idUsuario ORDER BY e.fecha DESC")
     List<Estadistica> obtenerEstadisticasPorUsuario(@Param("idUsuario") Long idUsuario);
 
     // Obtener estadística por grupo
-    @Query("SELECT e FROM Estadistica e WHERE e.grupo.idGrupo = :idGrupo ORDER BY e.fecha DESC")
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.grupo.idGrupo = :idGrupo ORDER BY e.fecha DESC")
     List<Estadistica> obtenerEstadisticasPorGrupo(@Param("idGrupo") Long idGrupo);
 
     // Obtener estadística del día actual para un usuario
-    @Query("SELECT e FROM Estadistica e WHERE e.usuario.idUsuario = :idUsuario AND e.fecha = :fecha")
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.usuario.idUsuario = :idUsuario AND e.fecha = :fecha")
     Optional<Estadistica> obtenerEstadisticaActualUsuario(@Param("idUsuario") Long idUsuario, @Param("fecha") LocalDate fecha);
 
     // Obtener estadística del día actual para un grupo
-    @Query("SELECT e FROM Estadistica e WHERE e.grupo.idGrupo = :idGrupo AND e.fecha = :fecha")
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.grupo.idGrupo = :idGrupo AND e.fecha = :fecha")
     Optional<Estadistica> obtenerEstadisticaActualGrupo(@Param("idGrupo") Long idGrupo, @Param("fecha") LocalDate fecha);
 
     // Obtener estadísticas en un rango de fechas para un usuario
-    @Query("SELECT e FROM Estadistica e WHERE e.usuario.idUsuario = :idUsuario " +
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.usuario.idUsuario = :idUsuario " +
            "AND e.fecha BETWEEN :fechaDesde AND :fechaHasta ORDER BY e.fecha DESC")
     List<Estadistica> obtenerEstadisticasUsuarioPorRango(
         @Param("idUsuario") Long idUsuario,
@@ -40,7 +40,7 @@ public interface EstadisticaRepository extends JpaRepository<Estadistica, Long> 
     );
 
     // Obtener estadísticas en un rango de fechas para un grupo
-    @Query("SELECT e FROM Estadistica e WHERE e.grupo.idGrupo = :idGrupo " +
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.grupo.idGrupo = :idGrupo " +
            "AND e.fecha BETWEEN :fechaDesde AND :fechaHasta ORDER BY e.fecha DESC")
     List<Estadistica> obtenerEstadisticasGrupoPorRango(
         @Param("idGrupo") Long idGrupo,
@@ -49,12 +49,12 @@ public interface EstadisticaRepository extends JpaRepository<Estadistica, Long> 
     );
 
     // Obtener estadísticas de todos los usuarios de un grupo
-    @Query("SELECT e FROM Estadistica e WHERE e.grupo.idGrupo = :idGrupo AND e.usuario IS NOT NULL " +
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.grupo.idGrupo = :idGrupo AND e.usuario IS NOT NULL " +
            "ORDER BY e.usuario.nombre ASC, e.fecha DESC")
     List<Estadistica> obtenerEstadisticasUsuariosDelGrupo(@Param("idGrupo") Long idGrupo);
 
     // Obtener la última estadística de cada usuario del grupo
-    @Query("SELECT e FROM Estadistica e WHERE e.grupo.idGrupo = :idGrupo AND e.usuario IS NOT NULL " +
+    @Query("SELECT e FROM Estadistica e LEFT JOIN FETCH e.usuario LEFT JOIN FETCH e.grupo WHERE e.grupo.idGrupo = :idGrupo AND e.usuario IS NOT NULL " +
            "AND e.fecha = (SELECT MAX(e2.fecha) FROM Estadistica e2 WHERE e2.usuario.idUsuario = e.usuario.idUsuario) " +
            "ORDER BY e.usuario.nombre ASC")
     List<Estadistica> obtenerUltimasEstadisticasUsuariosDelGrupo(@Param("idGrupo") Long idGrupo);

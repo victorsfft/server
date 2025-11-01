@@ -27,9 +27,9 @@ public interface ConfiguracionJornadaRepository extends JpaRepository<Configurac
     List<ConfiguracionJornada> findByGrupo(Grupo grupo);
 
     /**
-     * Obtiene todas las configuraciones de un grupo por su ID
+     * Obtiene todas las configuraciones de un grupo por su ID (con relaciones cargadas)
      */
-    @Query("SELECT c FROM ConfiguracionJornada c WHERE c.grupo.idGrupo = :idGrupo")
+    @Query("SELECT DISTINCT c FROM ConfiguracionJornada c LEFT JOIN FETCH c.horarios WHERE c.grupo.idGrupo = :idGrupo")
     List<ConfiguracionJornada> findByGrupoId(@Param("idGrupo") Long idGrupo);
 
     /**
@@ -39,9 +39,9 @@ public interface ConfiguracionJornadaRepository extends JpaRepository<Configurac
     Optional<ConfiguracionJornada> findByNombreAndGrupoId(@Param("nombre") String nombre, @Param("idGrupo") Long idGrupo);
 
     /**
-     * Obtiene configuraciones activas de un grupo
+     * Obtiene configuraciones activas de un grupo (con relaciones cargadas)
      */
-    @Query("SELECT c FROM ConfiguracionJornada c WHERE c.grupo.idGrupo = :idGrupo AND c.estado = 'ACTIVA'")
+    @Query("SELECT DISTINCT c FROM ConfiguracionJornada c LEFT JOIN FETCH c.horarios WHERE c.grupo.idGrupo = :idGrupo AND c.estado = 'ACTIVA'")
     List<ConfiguracionJornada> findActivasByGrupoId(@Param("idGrupo") Long idGrupo);
 
     /**

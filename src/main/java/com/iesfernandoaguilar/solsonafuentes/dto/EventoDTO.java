@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.hibernate.LazyInitializationException;
+
 import com.iesfernandoaguilar.solsonafuentes.model.Evento;
 
 public class EventoDTO {
@@ -52,28 +54,45 @@ public class EventoDTO {
         dto.setDiasRepeticion(evento.getDiasRepeticion());
         dto.setFechaCreacion(evento.getFechaCreacion());
 
-        if (evento.getCreadoPor() != null) {
-            dto.setCreadoPorId(evento.getCreadoPor().getIdUsuario());
-            dto.setCreadoPorNombre(evento.getCreadoPor().getNombre());
+        // Manejar relaciones lazy con try-catch para evitar LazyInitializationException
+        try {
+            if (evento.getCreadoPor() != null) {
+                dto.setCreadoPorId(evento.getCreadoPor().getIdUsuario());
+                dto.setCreadoPorNombre(evento.getCreadoPor().getNombre());
+            }
+        } catch (LazyInitializationException e) {
+            System.err.println("WARN: No se pudo cargar creadoPor para evento " + evento.getIdEvento());
+            dto.setCreadoPorId(null);
+            dto.setCreadoPorNombre("Usuario no disponible");
         }
 
-        if (evento.getUsuariosAsistentes() != null) {
-            dto.setUsuariosAsistentesIds(
-                evento.getUsuariosAsistentes().stream()
-                    .map(u -> u.getIdUsuario())
-                    .collect(Collectors.toList())
-            );
-        } else {
+        try {
+            if (evento.getUsuariosAsistentes() != null) {
+                dto.setUsuariosAsistentesIds(
+                    evento.getUsuariosAsistentes().stream()
+                        .map(u -> u.getIdUsuario())
+                        .collect(Collectors.toList())
+                );
+            } else {
+                dto.setUsuariosAsistentesIds(new ArrayList<>());
+            }
+        } catch (LazyInitializationException e) {
+            System.err.println("WARN: No se pudo cargar usuariosAsistentes para evento " + evento.getIdEvento());
             dto.setUsuariosAsistentesIds(new ArrayList<>());
         }
 
-        if (evento.getDepartamentosInvitados() != null) {
-            dto.setDepartamentosInvitadosIds(
-                evento.getDepartamentosInvitados().stream()
-                    .map(d -> d.getIdDepartamento())
-                    .collect(Collectors.toList())
-            );
-        } else {
+        try {
+            if (evento.getDepartamentosInvitados() != null) {
+                dto.setDepartamentosInvitadosIds(
+                    evento.getDepartamentosInvitados().stream()
+                        .map(d -> d.getIdDepartamento())
+                        .collect(Collectors.toList())
+                );
+            } else {
+                dto.setDepartamentosInvitadosIds(new ArrayList<>());
+            }
+        } catch (LazyInitializationException e) {
+            System.err.println("WARN: No se pudo cargar departamentosInvitados para evento " + evento.getIdEvento());
             dto.setDepartamentosInvitadosIds(new ArrayList<>());
         }
 
