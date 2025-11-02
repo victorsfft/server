@@ -49,6 +49,7 @@ public class InicioSesionHandler implements Runnable{
     @Override
     public void run() {
         Optional<Usuario> usuario = null;
+        Optional<Usuario> usuarioOpt = null;
         ObjectMapper mapper = new ObjectMapper();
 
         System.out.println("inicia sesion handler");
@@ -65,6 +66,57 @@ public class InicioSesionHandler implements Runnable{
                 Mensaje mensajeServer = new Mensaje();
                 
                 switch(mensajeUser.getTipo()) {
+                    case "VALIDAR_SESION":
+                        Long idUsuario = Long.valueOf(mensajeUser.getArgs().get(0));
+                        usuarioOpt = usuarioService.findByIdUsuario(idUsuario);
+
+                        if (usuarioOpt.isPresent()) {
+                            Usuario usuarioValidado = usuarioOpt.get();
+                            
+                            mensajeServer.setTipo("SESION_ACTIVA");
+
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.setSerializationInclusion(Include.NON_NULL);
+                            localMapper.registerModule(new JavaTimeModule());
+                            localMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+                            UsuarioDTO usuarioDTO = new UsuarioDTO();
+                            usuarioDTO.parse(usuarioValidado);
+                            usuarioDTO.setContraseniaHasheada("");
+                            usuarioDTO.setSalt("");
+                            
+                            try {
+                                mensajeServer.addArg(localMapper.writeValueAsString(usuarioDTO));
+
+                                if(usuarioValidado.getGrupo() != null) {
+                                    String jsonGrupo = obtenerGrupo(usuarioValidado.getGrupo().getIdGrupo());
+                                    mensajeServer.addArg(jsonGrupo);
+                                } else {
+                                    mensajeServer.addArg(null);
+                                }
+                            } catch (JsonProcessingException e) {
+                                System.err.println("Error al procesar JSON para validación de sesión.");
+                                mensajeServer.setTipo("SESION_INVALIDA");
+                                mensajeServer.getArgs().clear();
+                                enviar(mensajeServer);
+                                break;
+                            }
+
+                            if (!server.isSesionActiva(idUsuario)) {
+                                server.iniciarSesion(idUsuario, context, socket);
+                            }
+                            
+                            enviar(mensajeServer);
+
+                            if (!server.isSesionActiva(idUsuario)) {
+                                return; 
+                            }
+
+                        } else {
+                            mensajeServer.setTipo("SESION_INVALIDA");
+                            enviar(mensajeServer);
+                        }
+                        break;
                     case "COMPROBAR_NOMBRE_Y_CORREO":
                         mensajeServer.setTipo("USUARIO_EXISTE");
 
@@ -115,7 +167,7 @@ public class InicioSesionHandler implements Runnable{
                     case "INICIAR_SESION":
                         mensajeServer.setTipo("INICIO_SESION_RESPUESTA");
 
-                        Optional<Usuario> usuarioOpt = usuarioService.login(mensajeUser.getArgs().get(0));
+                        usuarioOpt = usuarioService.login(mensajeUser.getArgs().get(0));
                         String json = "";
 
                         if(usuarioOpt.isPresent()) {
@@ -136,6 +188,7 @@ public class InicioSesionHandler implements Runnable{
                                     mensajeServer.addArg(json);
                                 }
 
+                                usuario = usuarioOpt;
                                 iniciarSesion = true;
 
                             } else {

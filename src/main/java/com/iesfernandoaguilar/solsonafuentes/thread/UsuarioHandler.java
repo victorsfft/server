@@ -84,14 +84,27 @@ public class UsuarioHandler implements Runnable{
     private DataInputStream reader;
     private DataOutputStream writer;
     private boolean cierraSesion;
+    private Long usuarioId;
 
-    public UsuarioHandler(Socket socket,ApplicationContext context,Servidor server) {
+    public UsuarioHandler(Socket socket,ApplicationContext context,Servidor server, Long usuarioId) {
         this.socket = socket;
         this.server = server;
         this.context = context;
+        this.usuarioId = usuarioId;
         reader = null;
         writer = null;
         cierraSesion = false;
+    }
+
+    public void cerrarConexion() {
+        try {
+            cierraSesion = true;
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Error al cerrar la conexión: " + e.getMessage());
+        }
     }
 
     @Override
@@ -144,6 +157,10 @@ public class UsuarioHandler implements Runnable{
                 System.out.println(mensajeUser.getTipo());
                 
                 switch(mensajeUser.getTipo()) {
+                    case "LOGOUT":
+                        server.cerrarSesion(this.usuarioId);
+                        cierraSesion = true;
+                        break;
                     case "COMPROBAR_EMPRESA":
                         System.out.println("comprobar empresa");
                         mensajeServer.setTipo("EMPRESA_EXISTE");
@@ -2225,10 +2242,14 @@ public class UsuarioHandler implements Runnable{
 
                 }
             }
+        } catch (java.net.SocketException e) {
+            server.cerrarSesion(usuarioId);
         } catch (EOFException eOFException) {
             System.err.println("Se ha cerrado el flujo");
+            server.cerrarSesion(usuarioId);
         } catch(IOException iOException){
             System.err.println("ioexception");
+            server.cerrarSesion(usuarioId);
         }
         System.out.println("usuario handler cerrado");
     }

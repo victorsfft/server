@@ -105,9 +105,26 @@ public class Servidor {
     }
 
     public void iniciarSesion(Long usuarioId, ApplicationContext context, Socket socket){
-        UsuarioHandler uHandler = new UsuarioHandler(socket, context, this);
+        if (usuariosHandlers.containsKey(usuarioId)) {
+            System.out.println("Usuario ya conectado. Cerrando sesión anterior.");
+            usuariosHandlers.get(usuarioId).cerrarConexion();
+            usuariosHandlers.remove(usuarioId);
+        }
+        UsuarioHandler uHandler = new UsuarioHandler(socket, context, this, usuarioId);
         usuariosHandlers.put(usuarioId, uHandler);
         handlersExecutor.execute(uHandler);
+    }
+
+    public void cerrarSesion(Long usuarioId) {
+        UsuarioHandler handler = usuariosHandlers.remove(usuarioId);
+        if (handler != null) {
+            handler.cerrarConexion();
+            System.out.println("Usuario " + usuarioId + " desconectado.");
+        }
+    }
+
+    public boolean isSesionActiva(Long usuarioId) {
+        return usuariosHandlers.containsKey(usuarioId);
     }
 
 
