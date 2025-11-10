@@ -1,9 +1,12 @@
 package com.iesfernandoaguilar.solsonafuentes.dto;
 
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.hibernate.Hibernate;
 
 import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
 
@@ -154,41 +157,35 @@ public class TareaDTO {
             dto.setCreadoPorId(tarea.getCreadoPor().getIdUsuario());
         }
 
-        // Convertir listas de objetos a listas de IDs (con manejo seguro de lazy loading)
-        try {
-            if (tarea.getUsuariosAsignados() != null && !tarea.getUsuariosAsignados().isEmpty()) {
-                dto.setUsuariosAsignadosIds(
-                    tarea.getUsuariosAsignados().stream()
-                        .map(usuario -> usuario.getIdUsuario())
-                        .collect(Collectors.toList())
-                );
-            }
-        } catch (Exception e) {
-            // Si hay LazyInitializationException, dejamos la lista como null
+        // Convertir listas de objetos a listas de IDs (siempre inicializar listas vacías)
+        if (tarea.getUsuariosAsignados() != null && Hibernate.isInitialized(tarea.getUsuariosAsignados())) {
+            dto.setUsuariosAsignadosIds(
+                tarea.getUsuariosAsignados().stream()
+                    .map(usuario -> usuario.getIdUsuario())
+                    .collect(Collectors.toList())
+            );
+        } else {
+            dto.setUsuariosAsignadosIds(new ArrayList<>());
         }
 
-        try {
-            if (tarea.getDepartamentosAsignados() != null && !tarea.getDepartamentosAsignados().isEmpty()) {
-                dto.setDepartamentosAsignadosIds(
-                    tarea.getDepartamentosAsignados().stream()
-                        .map(dept -> dept.getIdDepartamento())
-                        .collect(Collectors.toList())
-                );
-            }
-        } catch (Exception e) {
-            // Si hay LazyInitializationException, dejamos la lista como null
+        if (tarea.getDepartamentosAsignados() != null && Hibernate.isInitialized(tarea.getDepartamentosAsignados())) {
+            dto.setDepartamentosAsignadosIds(
+                tarea.getDepartamentosAsignados().stream()
+                    .map(dept -> dept.getIdDepartamento())
+                    .collect(Collectors.toList())
+            );
+        } else {
+            dto.setDepartamentosAsignadosIds(new ArrayList<>());
         }
 
-        try {
-            if (tarea.getTareasDependientes() != null && !tarea.getTareasDependientes().isEmpty()) {
-                dto.setTareasDependientesIds(
-                    tarea.getTareasDependientes().stream()
-                        .map(t -> t.getIdTarea())
-                        .collect(Collectors.toList())
-                );
-            }
-        } catch (Exception e) {
-            // Si hay LazyInitializationException, dejamos la lista como null
+        if (tarea.getTareasDependientes() != null && Hibernate.isInitialized(tarea.getTareasDependientes())) {
+            dto.setTareasDependientesIds(
+                tarea.getTareasDependientes().stream()
+                    .map(t -> t.getIdTarea())
+                    .collect(Collectors.toList())
+            );
+        } else {
+            dto.setTareasDependientesIds(new ArrayList<>());
         }
 
         return dto;

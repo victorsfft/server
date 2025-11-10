@@ -1,19 +1,28 @@
 package com.iesfernandoaguilar.solsonafuentes.service;
 
-import com.iesfernandoaguilar.solsonafuentes.enums.EstadoConfiguracion;
-import com.iesfernandoaguilar.solsonafuentes.enums.EstadoJornada;
-import com.iesfernandoaguilar.solsonafuentes.model.*;
-import com.iesfernandoaguilar.solsonafuentes.repository.*;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import com.iesfernandoaguilar.solsonafuentes.enums.EstadoJornada;
+import com.iesfernandoaguilar.solsonafuentes.model.ConfiguracionJornada;
+import com.iesfernandoaguilar.solsonafuentes.model.DescansoDia;
+import com.iesfernandoaguilar.solsonafuentes.model.Grupo;
+import com.iesfernandoaguilar.solsonafuentes.model.HorarioDia;
+import com.iesfernandoaguilar.solsonafuentes.model.JornadaLaboral;
+import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
+import com.iesfernandoaguilar.solsonafuentes.repository.ConfiguracionJornadaRepository;
+import com.iesfernandoaguilar.solsonafuentes.repository.DescansoDiaRepository;
+import com.iesfernandoaguilar.solsonafuentes.repository.GrupoRepository;
+import com.iesfernandoaguilar.solsonafuentes.repository.HorarioDiaRepository;
+import com.iesfernandoaguilar.solsonafuentes.repository.JornadaLaboralRepository;
+import com.iesfernandoaguilar.solsonafuentes.repository.UsuarioRepository;
 
 /**
  * Servicio para gestionar configuraciones de jornada laboral
@@ -44,8 +53,7 @@ public class ConfiguracionJornadaService {
      * Crea una nueva configuración de jornada con sus horarios y descansos
      */
     @Transactional
-    public ConfiguracionJornada crearConfiguracion(String nombreConfig, LocalDate fechaInicio,
-                                                    LocalDate fechaFin, Long idGrupo, Long idUsuarioCreador,
+    public ConfiguracionJornada crearConfiguracion(String nombreConfig, Long idGrupo, Long idUsuarioCreador,
                                                     List<HorarioDia> horarios) {
         // Validar que el grupo existe
         Grupo grupo = grupoRepository.findById(idGrupo)
@@ -56,17 +64,9 @@ public class ConfiguracionJornadaService {
             throw new RuntimeException("Ya existe una configuración con ese nombre en el grupo");
         }
 
-        // Validar fechas
-        if (fechaFin != null && fechaInicio.isAfter(fechaFin)) {
-            throw new RuntimeException("La fecha de inicio no puede ser posterior a la fecha de fin");
-        }
-
         // Crear configuración
         ConfiguracionJornada configuracion = new ConfiguracionJornada();
         configuracion.setNombreConfig(nombreConfig);
-        configuracion.setEstado(EstadoConfiguracion.ACTIVA);
-        configuracion.setFechaInicio(fechaInicio);
-        configuracion.setFechaFin(fechaFin);
         configuracion.setFechaCreacion(java.time.LocalDateTime.now());
         configuracion.setGrupo(grupo);
 
@@ -102,15 +102,9 @@ public class ConfiguracionJornadaService {
      */
     @Transactional
     public ConfiguracionJornada actualizarConfiguracion(Long idConfig, String nuevoNombre,
-                                                         LocalDate nuevaFechaInicio, LocalDate nuevaFechaFin,
                                                          List<HorarioDia> nuevosHorarios) {
         ConfiguracionJornada configuracion = configuracionRepository.findByIdConfig(idConfig)
                 .orElseThrow(() -> new RuntimeException("Configuración no encontrada"));
-
-        // Validar fechas
-        if (nuevaFechaFin != null && nuevaFechaInicio.isAfter(nuevaFechaFin)) {
-            throw new RuntimeException("La fecha de inicio no puede ser posterior a la fecha de fin");
-        }
 
         // Actualizar datos básicos
         if (nuevoNombre != null && !nuevoNombre.equals(configuracion.getNombreConfig())) {
@@ -121,34 +115,64 @@ public class ConfiguracionJornadaService {
             configuracion.setNombreConfig(nuevoNombre);
         }
 
-        configuracion.setFechaInicio(nuevaFechaInicio);
-        configuracion.setFechaFin(nuevaFechaFin);
-
         // Actualizar horarios
         if (nuevosHorarios != null) {
-            // Eliminar horarios existentes y sus descansos
+            // Obtener horarios existentes
             List<HorarioDia> horariosExistentes = horarioDiaRepository.findByConfiguracionIdOrderByDia(idConfig);
-            for (HorarioDia horarioExistente : horariosExistentes) {
-                // Eliminar descansos del horario
-                List<DescansoDia> descansos = descansoDiaRepository.findByDiaIdOrderByHoraInicio(horarioExistente.getIdDia());
-                descansoDiaRepository.deleteAll(descansos);
-                // Eliminar horario
-                horarioDiaRepository.delete(horarioExistente);
-            }
 
-            // Guardar nuevos horarios
-            for (HorarioDia nuevoHorario : nuevosHorarios) {
-                nuevoHorario.setConfiguracion(configuracion);
-                nuevoHorario.setIdDia(null); // Asegurar que es nuevo
-                HorarioDia horarioGuardado = horarioDiaRepository.save(nuevoHorario);
+            // Actualizar o crear horarios
+            for (HorarioDia horarioNuevo : nuevosHorarios) {
+                // Buscar si existe un horario para este día
+                HorarioDia horarioExistente = horariosExistentes.stream()
+                    .filter(h -> h.getDiaSemana().equals(horarioNuevo.getDiaSemana()))
+                    .findFirst()
+                    .orElse(null);
 
-                // Guardar descansos
-                if (nuevoHorario.getDescansos() != null) {
-                    for (DescansoDia descanso : nuevoHorario.getDescansos()) {
-                        descanso.setDia(horarioGuardado);
-                        descanso.setIdDescanso(null); // Asegurar que es nuevo
+                HorarioDia horarioFinal;
+                if (horarioExistente != null) {
+                    // Actualizar horario existente
+                    horarioExistente.setEsLaborable(horarioNuevo.getEsLaborable());
+                    horarioExistente.setHoraEntrada(horarioNuevo.getHoraEntrada());
+                    horarioExistente.setHoraSalida(horarioNuevo.getHoraSalida());
+                    horarioFinal = horarioDiaRepository.save(horarioExistente);
+                } else {
+                    // Crear nuevo horario
+                    HorarioDia nuevoHorario2 = new HorarioDia();
+                    nuevoHorario2.setConfiguracion(configuracion);
+                    nuevoHorario2.setDiaSemana(horarioNuevo.getDiaSemana());
+                    nuevoHorario2.setEsLaborable(horarioNuevo.getEsLaborable());
+                    nuevoHorario2.setHoraEntrada(horarioNuevo.getHoraEntrada());
+                    nuevoHorario2.setHoraSalida(horarioNuevo.getHoraSalida());
+                    horarioFinal = horarioDiaRepository.save(nuevoHorario2);
+                }
+
+                // Actualizar descansos del horario
+                List<DescansoDia> descansosExistentes = descansoDiaRepository.findByDiaIdOrderByHoraInicio(horarioFinal.getIdDia());
+
+                // Eliminar descansos existentes
+                descansoDiaRepository.deleteAll(descansosExistentes);
+
+                // Crear nuevos descansos
+                if (horarioNuevo.getDescansos() != null) {
+                    for (DescansoDia descansoNuevo : horarioNuevo.getDescansos()) {
+                        DescansoDia descanso = new DescansoDia();
+                        descanso.setDia(horarioFinal);
+                        descanso.setTipoDescanso(descansoNuevo.getTipoDescanso());
+                        descanso.setHoraInicio(descansoNuevo.getHoraInicio());
+                        descanso.setDuracionMinutos(descansoNuevo.getDuracionMinutos());
                         descansoDiaRepository.save(descanso);
                     }
+                }
+            }
+
+            // Eliminar horarios que ya no están en la nueva configuración
+            for (HorarioDia horarioExistente : horariosExistentes) {
+                boolean existe = nuevosHorarios.stream()
+                    .anyMatch(h -> h.getDiaSemana().equals(horarioExistente.getDiaSemana()));
+                if (!existe) {
+                    List<DescansoDia> descansos = descansoDiaRepository.findByDiaIdOrderByHoraInicio(horarioExistente.getIdDia());
+                    descansoDiaRepository.deleteAll(descansos);
+                    horarioDiaRepository.delete(horarioExistente);
                 }
             }
         }
@@ -158,6 +182,7 @@ public class ConfiguracionJornadaService {
 
     /**
      * Elimina una configuración y sus horarios asociados
+     * Desvincula automáticamente los usuarios que la tenían asignada
      */
     @Transactional
     public boolean eliminarConfiguracion(Long idConfig) {
@@ -168,10 +193,15 @@ public class ConfiguracionJornadaService {
 
         ConfiguracionJornada configuracion = configOpt.get();
 
-        // Verificar si hay usuarios usando esta configuración
-        long usuariosUsandoConfig = usuarioRepository.countByConfiguracionJornadaId(idConfig);
-        if (usuariosUsandoConfig > 0) {
-            throw new RuntimeException("No se puede eliminar la configuración porque hay " + usuariosUsandoConfig + " usuario(s) asignado(s) a ella");
+        // Desvincular todos los usuarios que tienen esta configuración
+        // Buscar usuarios con esta configuración usando una query nativa si es necesario
+        List<Usuario> usuariosConConfig = usuarioRepository.findAll().stream()
+                .filter(u -> u.getConfiguracionJornada() != null && u.getConfiguracionJornada().getIdConfig().equals(idConfig))
+                .toList();
+
+        for (Usuario usuario : usuariosConConfig) {
+            usuario.setConfiguracionJornada(null);
+            usuarioRepository.save(usuario);
         }
 
         // Eliminar horarios y descansos
@@ -197,6 +227,25 @@ public class ConfiguracionJornadaService {
     }
 
     /**
+     * Obtiene todas las configuraciones de un grupo con horarios y descansos cargados
+     */
+    @Transactional(readOnly = true)
+    public List<ConfiguracionJornada> obtenerConfiguracionesPorGrupo(Long idGrupo, boolean incluirHorariosCompletos) {
+        List<ConfiguracionJornada> configuraciones = configuracionRepository.findByGrupoId(idGrupo);
+
+        if (incluirHorariosCompletos) {
+            // Inicializar descansos manualmente dentro de la transacción
+            configuraciones.forEach(config ->
+                config.getHorarios().forEach(horario ->
+                    org.hibernate.Hibernate.initialize(horario.getDescansos())
+                )
+            );
+        }
+
+        return configuraciones;
+    }
+
+    /**
      * Obtiene solo las configuraciones activas de un grupo
      */
     public List<ConfiguracionJornada> obtenerConfiguracionesActivas(Long idGrupo) {
@@ -204,22 +253,29 @@ public class ConfiguracionJornadaService {
     }
 
     /**
+     * Obtiene solo las configuraciones activas de un grupo con horarios y descansos cargados
+     */
+    @Transactional(readOnly = true)
+    public List<ConfiguracionJornada> obtenerConfiguracionesActivas(Long idGrupo, boolean incluirHorariosCompletos) {
+        List<ConfiguracionJornada> configuraciones = configuracionRepository.findActivasByGrupoId(idGrupo);
+
+        if (incluirHorariosCompletos) {
+            // Inicializar descansos manualmente dentro de la transacción
+            configuraciones.forEach(config ->
+                config.getHorarios().forEach(horario ->
+                    org.hibernate.Hibernate.initialize(horario.getDescansos())
+                )
+            );
+        }
+
+        return configuraciones;
+    }
+
+    /**
      * Obtiene una configuración por su ID
      */
     public Optional<ConfiguracionJornada> obtenerConfiguracionPorId(Long idConfig) {
         return configuracionRepository.findByIdConfig(idConfig);
-    }
-
-    /**
-     * Cambia el estado de una configuración (ACTIVA/INACTIVA)
-     */
-    @Transactional
-    public ConfiguracionJornada cambiarEstado(Long idConfig, EstadoConfiguracion nuevoEstado) {
-        ConfiguracionJornada configuracion = configuracionRepository.findByIdConfig(idConfig)
-                .orElseThrow(() -> new RuntimeException("Configuración no encontrada"));
-
-        configuracion.setEstado(nuevoEstado);
-        return configuracionRepository.save(configuracion);
     }
 
     /**
@@ -235,11 +291,6 @@ public class ConfiguracionJornadaService {
         // Validar configuración
         ConfiguracionJornada configuracion = configuracionRepository.findByIdConfig(idConfiguracion)
                 .orElseThrow(() -> new RuntimeException("Configuración no encontrada"));
-
-        // Validar que la configuración esté activa
-        if (configuracion.getEstado() != EstadoConfiguracion.ACTIVA) {
-            throw new RuntimeException("La configuración debe estar activa para generar jornadas");
-        }
 
         // Obtener horarios de la configuración
         List<HorarioDia> horarios = horarioDiaRepository.findByConfiguracionIdOrderByDia(idConfiguracion);

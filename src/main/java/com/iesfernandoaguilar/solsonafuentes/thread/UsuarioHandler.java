@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.iesfernandoaguilar.solsonafuentes.Servidor;
+import com.iesfernandoaguilar.solsonafuentes.dto.AnotacionesDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.ComentarioDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.ConfiguracionJornadaDTO;
 import com.iesfernandoaguilar.solsonafuentes.dto.DepartamentoDTO;
@@ -42,6 +43,7 @@ import com.iesfernandoaguilar.solsonafuentes.enums.Rol;
 import com.iesfernandoaguilar.solsonafuentes.enums.TipoAccionHistorial;
 import com.iesfernandoaguilar.solsonafuentes.enums.TipoDescanso;
 import com.iesfernandoaguilar.solsonafuentes.enums.TipoNotificacion;
+import com.iesfernandoaguilar.solsonafuentes.model.Anotaciones;
 import com.iesfernandoaguilar.solsonafuentes.model.Comentario;
 import com.iesfernandoaguilar.solsonafuentes.model.ConfiguracionJornada;
 import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
@@ -56,6 +58,7 @@ import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
 import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
 import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
 import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
+import com.iesfernandoaguilar.solsonafuentes.service.AnotacionesService;
 import com.iesfernandoaguilar.solsonafuentes.service.ComentarioService;
 import com.iesfernandoaguilar.solsonafuentes.service.ConfiguracionJornadaService;
 import com.iesfernandoaguilar.solsonafuentes.service.DepartamentoService;
@@ -125,6 +128,7 @@ public class UsuarioHandler implements Runnable{
         EstadisticaService estadisticaService = context.getBean(EstadisticaService.class);
         InformeService informeService = context.getBean(InformeService.class);
         ConfiguracionJornadaService configuracionJornadaService = context.getBean(ConfiguracionJornadaService.class);
+        AnotacionesService anotacionesService = context.getBean(AnotacionesService.class);
 
         String nombreEmpresa = "";
         String vatEmpresa = "";
@@ -724,19 +728,12 @@ public class UsuarioHandler implements Runnable{
                         mensajeServer.setTipo("DEPARTAMENTO_ELIMINADO");
 
                         try {
-                         idDepartamento = Long.valueOf(mensajeUser.getArgs().get(0));
+                            idDepartamento = Long.valueOf(mensajeUser.getArgs().get(0));
 
-                            // Verificar si hay usuarios en este departamento
-                            List<Usuario> usuariosEnDepartamento = usuarioService.findByIdDepartamento(idDepartamento);
-
-                            if (!usuariosEnDepartamento.isEmpty()) {
-                                mensajeServer.addArg("tiene_usuarios");
-                                System.err.println("❌ No se puede eliminar departamento con usuarios asignados");
-                            } else {
-                                departamentoService.eliminarDepartamento(idDepartamento);
-                                mensajeServer.addArg("eliminado");
-                                System.out.println("✅ Departamento eliminado: " + idDepartamento);
-                            }
+                            // Eliminar departamento (desvinculará usuarios automáticamente)
+                            departamentoService.eliminarDepartamento(idDepartamento);
+                            mensajeServer.addArg("eliminado");
+                            System.out.println("✅ Departamento eliminado: " + idDepartamento);
 
                         } catch (Exception e) {
                             mensajeServer.addArg("error");
@@ -753,18 +750,10 @@ public class UsuarioHandler implements Runnable{
                         try {
                             idSubgrupo = Long.valueOf(mensajeUser.getArgs().get(0));
 
-                            // Verificar si hay departamentos en este subgrupo
-                            List<Departamento> departamentosEnSubgrupo = departamentoService
-                                    .obtenerDepartamentos(idSubgrupo);
-
-                            if (!departamentosEnSubgrupo.isEmpty()) {
-                                mensajeServer.addArg("tiene_departamentos");
-                                System.err.println("❌ No se puede eliminar subgrupo con departamentos");
-                            } else {
-                                subgrupoService.eliminarSubgrupo(idSubgrupo);
-                                mensajeServer.addArg("eliminado");
-                                System.out.println("✅ Subgrupo eliminado: " + idSubgrupo);
-                            }
+                            // Eliminar subgrupo en cascada (eliminará departamentos y desvinculará usuarios)
+                            subgrupoService.eliminarSubgrupo(idSubgrupo);
+                            mensajeServer.addArg("eliminado");
+                            System.out.println("✅ Subgrupo eliminado en cascada: " + idSubgrupo);
 
                         } catch (Exception e) {
                             mensajeServer.addArg("error");
@@ -813,9 +802,39 @@ public class UsuarioHandler implements Runnable{
 
                         try {
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
-                            List<Tarea> tareasGrupo = tareaService.obtenerTareasPorGrupo(idGrupo);
 
-                            // Convertir entidades a DTOs
+                            usuarioOpt = usuarioService.findByIdUsuario(usuarioId);
+                            if (!usuarioOpt.isPresent()) {
+                                System.err.println("❌ Usuario no encontrado: " + usuarioId);
+                                mensajeServer.addArg("[]");
+                                enviar(mensajeServer);
+                                break;
+                            }
+
+                            Usuario usuarioTareas = usuarioOpt.get();
+                            List<Tarea> tareasGrupo;
+
+                            if (usuarioTareas.getRol() == Rol.ADMINISTRADOR || usuarioTareas.getRol() == Rol.SUPERADMIN) {
+                                tareasGrupo = tareaService.obtenerTareasPorGrupo(idGrupo);
+                            } else {
+                                tareasGrupo = tareaService.obtenerTareasAsignadasAUsuario(usuarioId);
+
+                                if (usuarioTareas.getDepartamento() != null) {
+                                    List<Tarea> tareasDepartamento = tareaService.obtenerTareasAsignadasADepartamento(
+                                        usuarioTareas.getDepartamento().getIdDepartamento());
+
+                                    for (Tarea tarea : tareasDepartamento) {
+                                        if (!tareasGrupo.contains(tarea)) {
+                                            tareasGrupo.add(tarea);
+                                        }
+                                    }
+                                }
+
+                                tareasGrupo = tareasGrupo.stream()
+                                    .filter(t -> t.getEstado() != EstadoTarea.COMPLETADA)
+                                    .collect(Collectors.toList());
+                            }
+
                             List<TareaDTO> tareasDTOs = tareasGrupo.stream()
                                 .map(TareaDTO::fromEntity)
                                 .collect(Collectors.toList());
@@ -826,7 +845,7 @@ public class UsuarioHandler implements Runnable{
 
                             json = mapper.writeValueAsString(tareasDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Tareas del grupo obtenidas: " + tareasDTOs.size());
+                            System.out.println("✅ Tareas obtenidas para usuario " + usuarioTareas.getRol() + ": " + tareasDTOs.size());
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener tareas del grupo");
                             e.printStackTrace();
@@ -844,13 +863,15 @@ public class UsuarioHandler implements Runnable{
                             String prioridadStr = mensajeUser.getArgs().get(2);
                             String fechaFinStr = mensajeUser.getArgs().get(3);
                             Long idCreador = Long.valueOf(mensajeUser.getArgs().get(4));
+                            String usuariosStr = mensajeUser.getArgs().size() > 5 ? mensajeUser.getArgs().get(5) : "";
+                            String departamentosStr = mensajeUser.getArgs().size() > 6 ? mensajeUser.getArgs().get(6) : "";
 
                             Tarea nuevaTarea = new Tarea();
                             nuevaTarea.setTitulo(titulo);
                             nuevaTarea.setDescripcion(descripcion);
                             nuevaTarea.setPrioridad(Prioridad.valueOf(prioridadStr.toUpperCase()));
 
-                            if (fechaFinStr != null && !fechaFinStr.isEmpty()) {
+                            if (fechaFinStr != null && !fechaFinStr.isEmpty() && !"null".equals(fechaFinStr)) {
                                 nuevaTarea.setFechaFin(java.time.LocalDate.parse(fechaFinStr));
                             }
 
@@ -862,9 +883,54 @@ public class UsuarioHandler implements Runnable{
                             Tarea tareaCreada = tareaService.crearTarea(nuevaTarea);
 
                             if (tareaCreada != null) {
+                                System.out.println("✅ Tarea creada: " + titulo + " (ID: " + tareaCreada.getIdTarea() + ")");
+
+                                // Asignar usuarios
+                                if (usuariosStr != null && !usuariosStr.isEmpty()) {
+                                    String[] idsUsuarios = usuariosStr.split(",");
+                                    for (String idUsuarioStr : idsUsuarios) {
+                                        if (!idUsuarioStr.trim().isEmpty()) {
+                                            try {
+                                                Long idUsuarioAsignado = Long.valueOf(idUsuarioStr.trim());
+                                                Optional<Usuario> usuarioAsignado = usuarioService.findByIdUsuario(idUsuarioAsignado);
+                                                if (usuarioAsignado.isPresent()) {
+                                                    Tarea resultado = tareaService.asignarUsuario(tareaCreada.getIdTarea(), usuarioAsignado.get());
+                                                    if (resultado != null) {
+                                                        tareaCreada = resultado;
+                                                        System.out.println("   ✅ Usuario asignado: " + usuarioAsignado.get().getNombre());
+                                                    }
+                                                }
+                                            } catch (NumberFormatException e) {
+                                                System.err.println("   ⚠️ ID de usuario inválido: " + idUsuarioStr);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Asignar departamentos
+                                if (departamentosStr != null && !departamentosStr.isEmpty()) {
+                                    String[] idsDepartamentos = departamentosStr.split(",");
+                                    for (String idDeptStr : idsDepartamentos) {
+                                        if (!idDeptStr.trim().isEmpty()) {
+                                            try {
+                                                Long idDeptAsignado = Long.valueOf(idDeptStr.trim());
+                                                Optional<Departamento> deptAsignado = departamentoService.findByIdDepartamento(idDeptAsignado);
+                                                if (deptAsignado.isPresent()) {
+                                                    Tarea resultado = tareaService.asignarDepartamento(tareaCreada.getIdTarea(), deptAsignado.get());
+                                                    if (resultado != null) {
+                                                        tareaCreada = resultado;
+                                                        System.out.println("   ✅ Departamento asignado: " + deptAsignado.get().getNombre());
+                                                    }
+                                                }
+                                            } catch (NumberFormatException e) {
+                                                System.err.println("   ⚠️ ID de departamento inválido: " + idDeptStr);
+                                            }
+                                        }
+                                    }
+                                }
+
                                 mensajeServer.addArg("creada");
                                 mensajeServer.addArg(String.valueOf(tareaCreada.getIdTarea()));
-                                System.out.println("✅ Tarea creada: " + titulo);
                             } else {
                                 mensajeServer.addArg("error");
                             }
@@ -887,9 +953,9 @@ public class UsuarioHandler implements Runnable{
                             String prioridadStr = mensajeUser.getArgs().get(2);
                             String fechaFinStr = mensajeUser.getArgs().get(3);
                             Long idCreador = Long.valueOf(mensajeUser.getArgs().get(4));
-                            String usuariosStr = mensajeUser.getArgs().get(5);
-                            String departamentosStr = mensajeUser.getArgs().get(6);
-                            String comentarioInicial = mensajeUser.getArgs().get(7);
+                            String usuariosStr = mensajeUser.getArgs().size() > 5 ? mensajeUser.getArgs().get(5) : "";
+                            String departamentosStr = mensajeUser.getArgs().size() > 6 ? mensajeUser.getArgs().get(6) : "";
+                            String comentarioInicial = mensajeUser.getArgs().size() > 7 ? mensajeUser.getArgs().get(7) : "";
 
                             // Crear la tarea
                             Tarea nuevaTarea = new Tarea();
@@ -1004,6 +1070,14 @@ public class UsuarioHandler implements Runnable{
                             if (tareaActualizada != null) {
                                 mensajeServer.addArg("actualizado");
                                 System.out.println("✅ Estado de tarea actualizado: " + nuevoEstado);
+
+                                if (nuevoEstado == EstadoTarea.COMPLETADA) {
+                                    usuarioOpt = usuarioService.findByIdUsuario(usuarioId);
+                                    if (usuarioOpt.isPresent()) {
+                                        estadisticaService.actualizarEstadisticasUsuario(usuarioOpt.get());
+                                        System.out.println("✅ Estadísticas actualizadas para usuario: " + usuarioId);
+                                    }
+                                }
                             } else {
                                 mensajeServer.addArg("error");
                             }
@@ -1136,9 +1210,24 @@ public class UsuarioHandler implements Runnable{
 
                         try {
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
-                            List<Incidencia> incidenciasGrupo = incidenciaService.obtenerIncidenciasPorGrupo(idGrupo);
 
-                            // Convertir entidades a DTOs
+                            usuarioOpt = usuarioService.findByIdUsuario(usuarioId);
+                            if (!usuarioOpt.isPresent()) {
+                                System.err.println("❌ Usuario no encontrado: " + usuarioId);
+                                mensajeServer.addArg("[]");
+                                enviar(mensajeServer);
+                                break;
+                            }
+
+                            Usuario usuarioIncidencias = usuarioOpt.get();
+                            List<Incidencia> incidenciasGrupo;
+
+                            if (usuarioIncidencias.getRol() == Rol.ADMINISTRADOR || usuarioIncidencias.getRol() == Rol.SUPERADMIN) {
+                                incidenciasGrupo = incidenciaService.obtenerIncidenciasPorGrupo(idGrupo);
+                            } else {
+                                incidenciasGrupo = incidenciaService.obtenerIncidenciasPorUsuario(usuarioId);
+                            }
+
                             List<IncidenciaDTO> incidenciasDTOs = incidenciasGrupo.stream()
                                 .map(IncidenciaDTO::fromEntity)
                                 .collect(Collectors.toList());
@@ -1149,6 +1238,7 @@ public class UsuarioHandler implements Runnable{
 
                             json = mapper.writeValueAsString(incidenciasDTOs);
                             mensajeServer.addArg(json);
+                            System.out.println("✅ Incidencias obtenidas para usuario " + usuarioIncidencias.getRol() + ": " + incidenciasDTOs.size());
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener incidencias del grupo");
                             e.printStackTrace();
@@ -1272,6 +1362,67 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
+                    // ==================== CASOS DE INFORMES ====================
+
+                    case "GENERAR_INFORME":
+                        mensajeServer.setTipo("INFORME_GENERADO");
+                        try {
+                            String tipoInforme = mensajeUser.getArgs().get(0);
+                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(1));
+                            Long idUsuarioInforme = mensajeUser.getArgs().get(2).equals("null") ? null : Long.valueOf(mensajeUser.getArgs().get(2));
+                            String fechaDesdeStr = mensajeUser.getArgs().get(3);
+                            String fechaHastaStr = mensajeUser.getArgs().get(4);
+
+                            LocalDate fechaDesde = LocalDate.parse(fechaDesdeStr);
+                            LocalDate fechaHasta = LocalDate.parse(fechaHastaStr);
+
+                            // Usar directorio temporal del sistema
+                            String rutaTemporal = System.getProperty("java.io.tmpdir");
+
+                            String archivoGenerado = null;
+                            switch (tipoInforme) {
+                                case "JORNADA_LABORAL":
+                                    archivoGenerado = informeService.generarInformeJornadaLaboral(
+                                        idGrupo, idUsuarioInforme, fechaDesde, fechaHasta, rutaTemporal);
+                                    break;
+                                case "ESTADISTICAS_TAREAS":
+                                    archivoGenerado = informeService.generarInformeEstadisticas(
+                                        idGrupo, idUsuarioInforme, fechaDesde, fechaHasta, rutaTemporal);
+                                    break;
+                                case "RESUMEN_GENERAL":
+                                    archivoGenerado = informeService.generarInformeResumen(
+                                        idGrupo, idUsuarioInforme, fechaDesde, fechaHasta, rutaTemporal, "");
+                                    break;
+                            }
+
+                            if (archivoGenerado != null) {
+                                // Leer archivo y convertir a Base64
+                                java.io.File archivo = new java.io.File(archivoGenerado);
+                                byte[] contenido = java.nio.file.Files.readAllBytes(archivo.toPath());
+                                String base64 = java.util.Base64.getEncoder().encodeToString(contenido);
+
+                                // Enviar nombre del archivo y contenido en Base64
+                                mensajeServer.addArg(archivo.getName());
+                                mensajeServer.addArg(base64);
+
+                                // Eliminar archivo temporal
+                                archivo.delete();
+
+                                System.out.println("✅ Informe generado: " + tipoInforme);
+                            } else {
+                                mensajeServer.addArg("error");
+                                mensajeServer.addArg("");
+                                System.err.println("❌ Error: No se pudo generar el informe");
+                            }
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            mensajeServer.addArg("");
+                            System.err.println("❌ Error al generar informe: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
+
                     // ==================== CASOS DE EVENTOS ====================
 
                     case "CREAR_EVENTO_ASIGNACIONES":
@@ -1356,9 +1507,35 @@ public class UsuarioHandler implements Runnable{
 
                         try {
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
-                            List<Evento> eventosGrupo = eventoService.obtenerEventosPorGrupo(idGrupo);
 
-                            // Convertir entidades a DTOs
+                            usuarioOpt = usuarioService.findByIdUsuario(usuarioId);
+                            if (!usuarioOpt.isPresent()) {
+                                System.err.println("❌ Usuario no encontrado: " + usuarioId);
+                                mensajeServer.addArg("[]");
+                                enviar(mensajeServer);
+                                break;
+                            }
+
+                            Usuario usuarioEventos = usuarioOpt.get();
+                            List<Evento> eventosGrupo;
+
+                            if (usuarioEventos.getRol() == Rol.ADMINISTRADOR || usuarioEventos.getRol() == Rol.SUPERADMIN) {
+                                eventosGrupo = eventoService.obtenerEventosPorGrupo(idGrupo);
+                            } else {
+                                eventosGrupo = eventoService.obtenerEventosDeUsuario(usuarioId);
+
+                                if (usuarioEventos.getDepartamento() != null) {
+                                    List<Evento> eventosDepartamento = eventoService.obtenerEventosPorDepartamento(
+                                        usuarioEventos.getDepartamento().getIdDepartamento());
+
+                                    for (Evento evento : eventosDepartamento) {
+                                        if (!eventosGrupo.contains(evento)) {
+                                            eventosGrupo.add(evento);
+                                        }
+                                    }
+                                }
+                            }
+
                             List<EventoDTO> eventosDTOs = eventosGrupo.stream()
                                 .map(EventoDTO::fromEntity)
                                 .collect(Collectors.toList());
@@ -1369,7 +1546,7 @@ public class UsuarioHandler implements Runnable{
 
                             json = mapper.writeValueAsString(eventosDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Eventos del grupo obtenidos: " + eventosDTOs.size());
+                            System.out.println("✅ Eventos obtenidos para usuario " + usuarioEventos.getRol() + ": " + eventosDTOs.size());
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener eventos del grupo");
                             e.printStackTrace();
@@ -1674,15 +1851,19 @@ public class UsuarioHandler implements Runnable{
                             java.time.LocalDate fecha = fechaStr != null && !fechaStr.equals("null") ?
                                 java.time.LocalDate.parse(fechaStr) : java.time.LocalDate.now();
 
-                            List<Long> idsSinFichar = jornadaLaboralService.obtenerEmpleadosSinFichar(idGrupo, fecha);
+                            List<com.iesfernandoaguilar.solsonafuentes.model.Usuario> empleadosSinFichar = jornadaLaboralService.obtenerEmpleadosSinFichar(idGrupo, fecha);
+
+                            List<UsuarioDTO> empleadosSinFicharDTOs = empleadosSinFichar.stream()
+                                .map(UsuarioDTO::fromEntity)
+                                .collect(Collectors.toList());
 
                             mapper.registerModule(new JavaTimeModule());
                             mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                             mapper.setSerializationInclusion(Include.NON_NULL);
 
-                            json = mapper.writeValueAsString(idsSinFichar);
+                            json = mapper.writeValueAsString(empleadosSinFicharDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Empleados sin fichar obtenidos: " + idsSinFichar.size());
+                            System.out.println("✅ Empleados sin fichar obtenidos: " + empleadosSinFicharDTOs.size());
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener empleados sin fichar");
                             e.printStackTrace();
@@ -1741,22 +1922,35 @@ public class UsuarioHandler implements Runnable{
                         mensajeServer.setTipo("DAR_ESTADISTICAS_GRUPO");
                         try {
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
-                            String fechaDesdeStr = mensajeUser.getArgs().size() > 1 ? mensajeUser.getArgs().get(1) : "";
-                            String fechaHastaStr = mensajeUser.getArgs().size() > 2 ? mensajeUser.getArgs().get(2) : "";
+                            String idUsuarioStr = mensajeUser.getArgs().size() > 1 ? mensajeUser.getArgs().get(1) : "";
+                            String idDepartamentoStr = mensajeUser.getArgs().size() > 2 ? mensajeUser.getArgs().get(2) : "";
+                            String idSubgrupoStr = mensajeUser.getArgs().size() > 3 ? mensajeUser.getArgs().get(3) : "";
+                            String fechaDesdeStr = mensajeUser.getArgs().size() > 4 ? mensajeUser.getArgs().get(4) : "";
+                            String fechaHastaStr = mensajeUser.getArgs().size() > 5 ? mensajeUser.getArgs().get(5) : "";
 
-                            List<Estadistica> estadisticas;
+                            // Parsear filtros opcionales
+                            Long idUsuarioFiltro = (idUsuarioStr != null && !idUsuarioStr.isEmpty()) ? Long.valueOf(idUsuarioStr) : null;
+                            Long idDepartamentoFiltro = (idDepartamentoStr != null && !idDepartamentoStr.isEmpty()) ? Long.valueOf(idDepartamentoStr) : null;
+                            Long idSubgrupoFiltro = (idSubgrupoStr != null && !idSubgrupoStr.isEmpty()) ? Long.valueOf(idSubgrupoStr) : null;
+                            LocalDate fechaDesde = (fechaDesdeStr != null && !fechaDesdeStr.isEmpty()) ? LocalDate.parse(fechaDesdeStr) : null;
+                            LocalDate fechaHasta = (fechaHastaStr != null && !fechaHastaStr.isEmpty()) ? LocalDate.parse(fechaHastaStr) : null;
 
-                            // Si se especifican fechas, usar rango; si no, usar últimas estadísticas
-                            if (fechaDesdeStr != null && !fechaDesdeStr.isEmpty() &&
-                                fechaHastaStr != null && !fechaHastaStr.isEmpty()) {
-                                LocalDate fechaDesde = LocalDate.parse(fechaDesdeStr);
-                                LocalDate fechaHasta = LocalDate.parse(fechaHastaStr);
-                                estadisticas = estadisticaService.obtenerEstadisticasGrupoPorRango(idGrupo, fechaDesde, fechaHasta);
-                                System.out.println("📊 Obteniendo estadísticas de grupo con rango: " + fechaDesde + " a " + fechaHasta);
-                            } else {
-                                estadisticas = estadisticaService.obtenerUltimasEstadisticasUsuariosDelGrupo(idGrupo);
-                                System.out.println("📊 Obteniendo últimas estadísticas de usuarios del grupo");
-                            }
+                            System.out.println("📊 Calculando estadísticas con filtros:");
+                            System.out.println("   Grupo: " + idGrupo);
+                            System.out.println("   Usuario: " + (idUsuarioFiltro != null ? idUsuarioFiltro : "TODOS"));
+                            System.out.println("   Departamento: " + (idDepartamentoFiltro != null ? idDepartamentoFiltro : "TODOS"));
+                            System.out.println("   Subgrupo: " + (idSubgrupoFiltro != null ? idSubgrupoFiltro : "TODOS"));
+                            System.out.println("   Fechas: " + (fechaDesde != null ? fechaDesde : "auto") + " a " + (fechaHasta != null ? fechaHasta : "hoy"));
+
+                            // Calcular estadísticas con filtros
+                            List<Estadistica> estadisticas = estadisticaService.calcularEstadisticasConFiltros(
+                                idGrupo,
+                                idUsuarioFiltro,
+                                idDepartamentoFiltro,
+                                idSubgrupoFiltro,
+                                fechaDesde,
+                                fechaHasta
+                            );
 
                             List<EstadisticaDTO> estadisticasDTOs = estadisticas.stream()
                                 .map(EstadisticaDTO::fromEntity)
@@ -1768,39 +1962,118 @@ public class UsuarioHandler implements Runnable{
 
                             json = mapper.writeValueAsString(estadisticasDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Estadísticas de grupo obtenidas: " + estadisticas.size() + " registros");
+                            System.out.println("✅ Estadísticas calculadas: " + estadisticas.size() + " usuarios");
                         } catch (Exception e) {
-                            System.err.println("❌ Error al obtener estadísticas de grupo");
+                            System.err.println("❌ Error al calcular estadísticas de grupo");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
+
+
+                    case "CREAR_ANOTACION":
+                        mensajeServer.setTipo("ANOTACION_CREADA");
+                        try {
+                            String titulo = mensajeUser.getArgs().get(0);
+                            String texto = mensajeUser.getArgs().get(1);
+                            String fechaStr = mensajeUser.getArgs().get(2);
+                            Long idUsuarioAnotacion = Long.valueOf(mensajeUser.getArgs().get(3));
+
+                            Optional<Usuario> usuarioAnotacionOpt = usuarioService.findByIdUsuario(idUsuarioAnotacion);
+
+                            if (usuarioAnotacionOpt.isPresent()) {
+                                Anotaciones nuevaAnotacion = new Anotaciones();
+                                nuevaAnotacion.setTitulo(titulo);
+                                nuevaAnotacion.setTexto(texto);
+                                nuevaAnotacion.setFecha(java.time.LocalDate.parse(fechaStr));
+                                nuevaAnotacion.setUsuario(usuarioAnotacionOpt.get());
+                                nuevaAnotacion.setCreadoPor(usuarioAnotacionOpt.get()); // Assuming the user creating is the user for the annotation
+
+                                Anotaciones anotacionCreada = anotacionesService.crearAnotacion(nuevaAnotacion);
+
+                                if (anotacionCreada != null) {
+                                    mensajeServer.addArg("exito");
+                                    System.out.println("✅ Anotación creada: " + titulo);
+                                } else {
+                                    mensajeServer.addArg("error");
+                                }
+                            } else {
+                                mensajeServer.addArg("usuario_no_existe");
+                            }
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al crear anotación: " + e.getMessage());
                             e.printStackTrace();
                         }
                         enviar(mensajeServer);
                         break;
 
-                    case "ACTUALIZAR_ESTADISTICAS":
-                        // Alias para ACTUALIZAR_ESTADISTICAS_USUARIO, acepta idUsuario e idGrupo pero solo usa idUsuario
-                        mensajeServer.setTipo("ESTADISTICAS_ACTUALIZADAS");
+                    case "OBTENER_ANOTACIONES_USUARIO":
+                        mensajeServer.setTipo("DAR_ANOTACIONES_USUARIO");
                         try {
-                            Long idUsuarioActualizar = Long.valueOf(mensajeUser.getArgs().get(0));
-                            // idGrupo se recibe pero no se usa actualmente
-                            usuarioOpt = usuarioService.findByIdUsuario(idUsuarioActualizar);
-                            if (usuarioOpt.isPresent()) {
-                                Estadistica estadistica = estadisticaService.actualizarEstadisticasUsuario(usuarioOpt.get());
+                            Long idUsuarioAnotaciones = Long.valueOf(mensajeUser.getArgs().get(0));
+                            List<Anotaciones> anotacionesUsuario = anotacionesService.obtenerAnotacionesPorUsuario(idUsuarioAnotaciones);
+                            List<AnotacionesDTO> anotacionesDTO = new ArrayList<>();
+                            for (Anotaciones anotacion : anotacionesUsuario) {
+                                anotacionesDTO.add(AnotacionesDTO.fromEntity(anotacion));
+                            }
+                            json = mapper.writeValueAsString(anotacionesDTO);
+                            mensajeServer.addArg(json);
+                            System.out.println("✅ Anotaciones enviadas para usuario: " + idUsuarioAnotaciones);
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al obtener anotaciones: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
 
-                                mapper.registerModule(new JavaTimeModule());
-                                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                                mapper.setSerializationInclusion(Include.NON_NULL);
+                    case "ELIMINAR_ANOTACION":
+                        mensajeServer.setTipo("ANOTACION_ELIMINADA");
+                        try {
+                            Long idAnotacion = Long.valueOf(mensajeUser.getArgs().get(0));
+                            anotacionesService.eliminarAnotacion(idAnotacion);
+                            mensajeServer.addArg("eliminado");
+                            System.out.println("✅ Anotación eliminada: " + idAnotacion);
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al eliminar anotación: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                        enviar(mensajeServer);
+                        break;
 
-                                json = mapper.writeValueAsString(EstadisticaDTO.fromEntity(estadistica));
-                                mensajeServer.addArg("exito");
-                                mensajeServer.addArg(json);
-                                System.out.println("✅ Estadísticas actualizadas (desde ACTUALIZAR_ESTADISTICAS)");
+                    case "ACTUALIZAR_ANOTACION":
+                        mensajeServer.setTipo("ANOTACION_ACTUALIZADA");
+                        try {
+                            Long idAnotacion = Long.valueOf(mensajeUser.getArgs().get(0));
+                            String tituloAnotacion = mensajeUser.getArgs().get(1);
+                            String textoAnotacion = mensajeUser.getArgs().get(2);
+                            String fechaAnotacionStr = mensajeUser.getArgs().get(3);
+
+                            Optional<Anotaciones> anotacionOpt = anotacionesService.findByIdAnotacion(idAnotacion);
+                            if (anotacionOpt.isPresent()) {
+                                Anotaciones anotacion = anotacionOpt.get();
+                                anotacion.setTitulo(tituloAnotacion);
+                                anotacion.setTexto(textoAnotacion);
+                                anotacion.setFecha(LocalDate.parse(fechaAnotacionStr));
+
+                                Anotaciones anotacionActualizada = anotacionesService.actualizarAnotacion(anotacion);
+                                if (anotacionActualizada != null) {
+                                    mensajeServer.addArg("actualizado");
+                                    System.out.println("✅ Anotación actualizada: " + tituloAnotacion);
+                                } else {
+                                    mensajeServer.addArg("error");
+                                }
                             } else {
-                                mensajeServer.addArg("error");
+                                mensajeServer.addArg("no_encontrado");
                             }
                         } catch (Exception e) {
-                            System.err.println("❌ Error al actualizar estadísticas");
-                            e.printStackTrace();
                             mensajeServer.addArg("error");
+                            System.err.println("❌ Error al actualizar anotación: " + e.getMessage());
+                            e.printStackTrace();
                         }
                         enviar(mensajeServer);
                         break;
@@ -1919,20 +2192,19 @@ public class UsuarioHandler implements Runnable{
                         try {
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
                             String nombreConfig = mensajeUser.getArgs().get(1);
-                            String fechaInicioStr = mensajeUser.getArgs().get(2);
-                            String fechaFinStr = mensajeUser.getArgs().get(3);
-                            String horariosJson = mensajeUser.getArgs().get(4);
+                            String horariosJson = mensajeUser.getArgs().get(2);
 
-                            // Parsear fechas
-                            java.time.LocalDate fechaInicio = java.time.LocalDate.parse(fechaInicioStr);
-                            java.time.LocalDate fechaFin = java.time.LocalDate.parse(fechaFinStr);
+                            System.out.println("📋 Creando configuración: " + nombreConfig);
+                            System.out.println("📋 Horarios JSON recibido: " + horariosJson);
 
-                            // Deserializar horarios usando Gson
+                            // Deserializar horarios (Gson estándar es suficiente porque los DTOs usan Strings)
                             com.google.gson.Gson gson = new com.google.gson.Gson();
                             com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>> typeToken =
                                 new com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>>() {};
                             List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO> horariosDTOs =
                                 gson.fromJson(horariosJson, typeToken.getType());
+
+                            System.out.println("📋 DTOs deserializados: " + (horariosDTOs != null ? horariosDTOs.size() : "null"));
 
                             // Convertir DTOs a entidades
                             List<com.iesfernandoaguilar.solsonafuentes.model.HorarioDia> horarios = new ArrayList<>();
@@ -1944,7 +2216,7 @@ public class UsuarioHandler implements Runnable{
 
                             // Crear configuración
                             ConfiguracionJornada configuracion = configuracionJornadaService.crearConfiguracion(
-                                nombreConfig, fechaInicio, fechaFin, idGrupo, null, horarios
+                                nombreConfig, idGrupo, null, horarios
                             );
 
                             mensajeServer.addArg(configuracion.getIdConfig().toString());
@@ -1964,20 +2236,19 @@ public class UsuarioHandler implements Runnable{
                         try {
                             Long idConfig = Long.valueOf(mensajeUser.getArgs().get(0));
                             String nombreConfig = mensajeUser.getArgs().get(1);
-                            String fechaInicioStr = mensajeUser.getArgs().get(2);
-                            String fechaFinStr = mensajeUser.getArgs().get(3);
-                            String horariosJson = mensajeUser.getArgs().get(4);
+                            String horariosJson = mensajeUser.getArgs().get(2);
 
-                            // Parsear fechas
-                            java.time.LocalDate fechaInicio = java.time.LocalDate.parse(fechaInicioStr);
-                            java.time.LocalDate fechaFin = java.time.LocalDate.parse(fechaFinStr);
+                            System.out.println("📋 Actualizando configuración ID: " + idConfig);
+                            System.out.println("📋 Horarios JSON recibido: " + horariosJson);
 
-                            // Deserializar horarios usando Gson
+                            // Deserializar horarios (Gson estándar es suficiente porque los DTOs usan Strings)
                             com.google.gson.Gson gson = new com.google.gson.Gson();
                             com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>> typeToken =
                                 new com.google.gson.reflect.TypeToken<List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO>>() {};
                             List<com.iesfernandoaguilar.solsonafuentes.dto.HorarioDiaDTO> horariosDTOs =
                                 gson.fromJson(horariosJson, typeToken.getType());
+
+                            System.out.println("📋 DTOs deserializados: " + (horariosDTOs != null ? horariosDTOs.size() : "null"));
 
                             // Convertir DTOs a entidades
                             List<com.iesfernandoaguilar.solsonafuentes.model.HorarioDia> horarios = new ArrayList<>();
@@ -1989,7 +2260,7 @@ public class UsuarioHandler implements Runnable{
 
                             // Actualizar configuración
                             ConfiguracionJornada configuracion = configuracionJornadaService.actualizarConfiguracion(
-                                idConfig, nombreConfig, fechaInicio, fechaFin, horarios
+                                idConfig, nombreConfig, horarios
                             );
 
                             mensajeServer.addArg(configuracion.getIdConfig().toString());
@@ -2009,14 +2280,28 @@ public class UsuarioHandler implements Runnable{
                         try {
                             idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
                             String soloActivas = mensajeUser.getArgs().size() > 1 ? mensajeUser.getArgs().get(1) : "false";
+                            String incluirHorarios = mensajeUser.getArgs().size() > 2 ? mensajeUser.getArgs().get(2) : "false";
 
+                            boolean incluirHorariosCompletos = Boolean.parseBoolean(incluirHorarios);
+
+                            // Usar el método apropiado del servicio para cargar descansos si se solicitan horarios completos
                             List<ConfiguracionJornada> configuraciones = Boolean.parseBoolean(soloActivas)
-                                ? configuracionJornadaService.obtenerConfiguracionesActivas(idGrupo)
-                                : configuracionJornadaService.obtenerConfiguracionesPorGrupo(idGrupo);
+                                ? configuracionJornadaService.obtenerConfiguracionesActivas(idGrupo, incluirHorariosCompletos)
+                                : configuracionJornadaService.obtenerConfiguracionesPorGrupo(idGrupo, incluirHorariosCompletos);
 
                             List<ConfiguracionJornadaDTO> configsDTOs = configuraciones.stream()
-                                .map(ConfiguracionJornadaDTO::fromEntity)
+                                .map(config -> ConfiguracionJornadaDTO.fromEntity(config, incluirHorariosCompletos))
                                 .collect(Collectors.toList());
+
+                            // Debug: verificar si los horarios están siendo incluidos
+                            if (incluirHorariosCompletos && !configsDTOs.isEmpty()) {
+                                ConfiguracionJornadaDTO firstDTO = configsDTOs.get(0);
+                                System.out.println("🔍 DEBUG: Primera config tiene " +
+                                    (firstDTO.getHorarios() != null ? firstDTO.getHorarios().size() : "null") + " horarios");
+                                if (firstDTO.getHorarios() != null && !firstDTO.getHorarios().isEmpty()) {
+                                    System.out.println("🔍 DEBUG: Primer horario: " + firstDTO.getHorarios().get(0).getDiaSemana());
+                                }
+                            }
 
                             mapper.registerModule(new JavaTimeModule());
                             mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -2024,7 +2309,7 @@ public class UsuarioHandler implements Runnable{
 
                             json = mapper.writeValueAsString(configsDTOs);
                             mensajeServer.addArg(json);
-                            System.out.println("✅ Configuraciones obtenidas: " + configsDTOs.size());
+                            System.out.println("✅ Configuraciones obtenidas: " + configsDTOs.size() + " (horarios completos: " + incluirHorariosCompletos + ")");
                         } catch (Exception e) {
                             System.err.println("❌ Error al obtener configuraciones");
                             e.printStackTrace();
@@ -2070,56 +2355,61 @@ public class UsuarioHandler implements Runnable{
                                 departamentosStr = mensajeUser.getArgs().get(6);
                             }
 
-                            Optional<Tarea> tareaOpt = tareaService.findByIdTarea(idTarea);
-                            if (tareaOpt.isPresent()) {
-                                Tarea tarea = tareaOpt.get();
-                                tarea.setTitulo(titulo);
-                                tarea.setDescripcion(descripcion);
-                                tarea.setPrioridad(Prioridad.valueOf(prioridadStr.toUpperCase()));
-
-                                if (fechaFinStr != null && !fechaFinStr.isEmpty()) {
-                                    tarea.setFechaFin(java.time.LocalDate.parse(fechaFinStr));
-                                } else {
-                                    tarea.setFechaFin(null);
+                            // Parsear IDs de usuarios y departamentos
+                            List<Long> idsUsuarios = new ArrayList<>();
+                            if (usuariosStr != null && !usuariosStr.isEmpty()) {
+                                String[] usuariosArray = usuariosStr.split(",");
+                                for (String idStr : usuariosArray) {
+                                    if (!idStr.trim().isEmpty()) {
+                                        idsUsuarios.add(Long.valueOf(idStr.trim()));
+                                    }
                                 }
+                            }
 
-                                // Limpiar asignaciones actuales
-                                tarea.getUsuariosAsignados().clear();
-                                tarea.getDepartamentosAsignados().clear();
+                            List<Long> idsDepartamentos = new ArrayList<>();
+                            if (departamentosStr != null && !departamentosStr.isEmpty()) {
+                                String[] deptosArray = departamentosStr.split(",");
+                                for (String idStr : deptosArray) {
+                                    if (!idStr.trim().isEmpty()) {
+                                        idsDepartamentos.add(Long.valueOf(idStr.trim()));
+                                    }
+                                }
+                            }
 
-                                // Asignar nuevos usuarios
-                                if (usuariosStr != null && !usuariosStr.isEmpty()) {
-                                    String[] idsUsuarios = usuariosStr.split(",");
-                                    for (String idUsuarioStr : idsUsuarios) {
-                                        if (!idUsuarioStr.trim().isEmpty()) {
-                                            Long idUsuarioAsignado = Long.valueOf(idUsuarioStr.trim());
-                                            usuarioService.findByIdUsuario(idUsuarioAsignado).ifPresent(
-                                                usuario -> tarea.getUsuariosAsignados().add(usuario)
-                                            );
-                                        }
+                            // Parsear fecha fin
+                            java.time.LocalDate fechaFin = null;
+                            if (fechaFinStr != null && !fechaFinStr.isEmpty()) {
+                                fechaFin = java.time.LocalDate.parse(fechaFinStr);
+                            }
+
+                            // Actualizar tarea usando método transaccional
+                            Tarea tareaActualizada = tareaService.actualizarTareaConAsignaciones(
+                                idTarea, titulo, descripcion,
+                                Prioridad.valueOf(prioridadStr.toUpperCase()),
+                                fechaFin, idsUsuarios, idsDepartamentos
+                            );
+
+                            if (tareaActualizada != null) {
+                                // Asignar usuarios
+                                for (Long idUsuarioAsignado : idsUsuarios) {
+                                    Optional<Usuario> usuarioAsignadoOpt = usuarioService.findByIdUsuario(idUsuarioAsignado);
+                                    if (usuarioAsignadoOpt.isPresent()) {
+                                        tareaService.asignarUsuario(idTarea, usuarioAsignadoOpt.get());
+                                        System.out.println("   ✅ Usuario asignado: " + usuarioAsignadoOpt.get().getNombre());
                                     }
                                 }
 
-                                // Asignar nuevos departamentos
-                                if (departamentosStr != null && !departamentosStr.isEmpty()) {
-                                    String[] idsDepartamentos = departamentosStr.split(",");
-                                    for (String idDeptStr : idsDepartamentos) {
-                                        if (!idDeptStr.trim().isEmpty()) {
-                                            Long idDeptAsignado = Long.valueOf(idDeptStr.trim());
-                                            departamentoService.findByIdDepartamento(idDeptAsignado).ifPresent(
-                                                dept -> tarea.getDepartamentosAsignados().add(dept)
-                                            );
-                                        }
+                                // Asignar departamentos
+                                for (Long idDeptoAsignado : idsDepartamentos) {
+                                    Optional<Departamento> deptoAsignadoOpt = departamentoService.findByIdDepartamento(idDeptoAsignado);
+                                    if (deptoAsignadoOpt.isPresent()) {
+                                        tareaService.asignarDepartamento(idTarea, deptoAsignadoOpt.get());
+                                        System.out.println("   ✅ Departamento asignado: " + deptoAsignadoOpt.get().getNombre());
                                     }
                                 }
 
-                                Tarea tareaActualizada = tareaService.actualizarTarea(tarea);
-                                if (tareaActualizada != null) {
-                                    mensajeServer.addArg("actualizada");
-                                    System.out.println("✅ Tarea actualizada: " + titulo);
-                                } else {
-                                    mensajeServer.addArg("error");
-                                }
+                                mensajeServer.addArg("actualizada");
+                                System.out.println("✅ Tarea actualizada: " + titulo);
                             } else {
                                 mensajeServer.addArg("no_encontrada");
                             }
@@ -2237,6 +2527,10 @@ public class UsuarioHandler implements Runnable{
                         }
                         enviar(mensajeServer);
                         break;
+
+
+
+
 
 
 

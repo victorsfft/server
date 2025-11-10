@@ -22,7 +22,7 @@ public interface JornadaLaboralRepository extends JpaRepository<JornadaLaboral, 
     Optional<JornadaLaboral> obtenerJornadaActual(@Param("idUsuario") Long idUsuario, @Param("fecha") LocalDate fecha);
 
     // Obtener jornadas de un usuario en un rango de fechas
-    @Query("SELECT j FROM JornadaLaboral j WHERE j.usuario.idUsuario = :idUsuario " +
+    @Query("SELECT j FROM JornadaLaboral j LEFT JOIN FETCH j.usuario WHERE j.usuario.idUsuario = :idUsuario " +
            "AND j.fecha BETWEEN :fechaDesde AND :fechaHasta ORDER BY j.fecha DESC")
     List<JornadaLaboral> obtenerJornadasUsuario(
         @Param("idUsuario") Long idUsuario,
@@ -31,7 +31,7 @@ public interface JornadaLaboralRepository extends JpaRepository<JornadaLaboral, 
     );
 
     // Obtener jornadas de un grupo en un rango de fechas
-    @Query("SELECT j FROM JornadaLaboral j WHERE j.usuario.grupo.idGrupo = :idGrupo " +
+    @Query("SELECT j FROM JornadaLaboral j LEFT JOIN FETCH j.usuario WHERE j.usuario.grupo.idGrupo = :idGrupo " +
            "AND j.fecha BETWEEN :fechaDesde AND :fechaHasta ORDER BY j.fecha DESC, j.usuario.nombre ASC")
     List<JornadaLaboral> obtenerJornadasGrupo(
         @Param("idGrupo") Long idGrupo,
@@ -40,10 +40,10 @@ public interface JornadaLaboralRepository extends JpaRepository<JornadaLaboral, 
     );
 
     // Obtener empleados sin fichar en una fecha específica
-    @Query("SELECT u.idUsuario FROM Usuario u WHERE u.grupo.idGrupo = :idGrupo " +
-           "AND u.idUsuario NOT IN (SELECT j.usuario.idUsuario FROM JornadaLaboral j WHERE j.fecha = :fecha) " +
+    @Query("SELECT u FROM com.iesfernandoaguilar.solsonafuentes.model.Usuario u LEFT JOIN FETCH u.departamento WHERE u.grupo.idGrupo = :idGrupo " +
+           "AND u.idUsuario NOT IN (SELECT j.usuario.idUsuario FROM com.iesfernandoaguilar.solsonafuentes.model.JornadaLaboral j WHERE j.fecha = :fecha AND j.usuario.grupo.idGrupo = :idGrupo) " +
            "AND u.rol IN ('EMPLEADO', 'ADMINISTRADOR')")
-    List<Long> obtenerEmpleadosSinFichar(@Param("idGrupo") Long idGrupo, @Param("fecha") LocalDate fecha);
+    List<com.iesfernandoaguilar.solsonafuentes.model.Usuario> obtenerEmpleadosSinFichar(@Param("idGrupo") Long idGrupo, @Param("fecha") LocalDate fecha);
 
     // Obtener jornadas por configuración
     @Query("SELECT j FROM JornadaLaboral j WHERE j.configuracion.idConfig = :idConfig ORDER BY j.fecha DESC")

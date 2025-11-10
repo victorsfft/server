@@ -181,7 +181,7 @@ public class JornadaLaboralService {
     /**
      * Obtiene los IDs de empleados que no han fichado hoy
      */
-    public List<Long> obtenerEmpleadosSinFichar(Long idGrupo, LocalDate fecha) {
+    public List<com.iesfernandoaguilar.solsonafuentes.model.Usuario> obtenerEmpleadosSinFichar(Long idGrupo, LocalDate fecha) {
         return jornadaRepository.obtenerEmpleadosSinFichar(idGrupo, fecha);
     }
 

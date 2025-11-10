@@ -156,6 +156,35 @@ public class HorarioDiaDTO {
     }
 
     /**
+     * Convierte una entidad HorarioDia a DTO para enviar al cliente
+     */
+    public static HorarioDiaDTO fromEntity(HorarioDia horario) {
+        HorarioDiaDTO dto = new HorarioDiaDTO();
+        dto.setIdDia(horario.getIdDia());
+        dto.setDiaSemana(horario.getDiaSemana() != null ? horario.getDiaSemana().name() : null);
+        dto.setEsLaborable(horario.getEsLaborable());
+
+        // Convertir Time a String
+        if (horario.getHoraEntrada() != null) {
+            dto.setHoraEntradaLocal(horario.getHoraEntrada().toLocalTime().toString());
+        }
+        if (horario.getHoraSalida() != null) {
+            dto.setHoraSalidaLocal(horario.getHoraSalida().toLocalTime().toString());
+        }
+
+        // Convertir descansos
+        if (horario.getDescansos() != null && !horario.getDescansos().isEmpty()) {
+            dto.setDescansos(horario.getDescansos().stream()
+                    .map(DescansoDTO::fromEntity)
+                    .collect(java.util.stream.Collectors.toList()));
+        } else {
+            dto.setDescansos(new ArrayList<>());
+        }
+
+        return dto;
+    }
+
+    /**
      * Clase interna para los descansos
      */
     public static class DescansoDTO {
@@ -213,10 +242,32 @@ public class HorarioDiaDTO {
             // Convertir hora de inicio
             if (this.horaInicioLocal != null && !this.horaInicioLocal.isEmpty()) {
                 LocalTime horaInicio = LocalTime.parse(this.horaInicioLocal);
-                descanso.setHoraInicio(Time.valueOf(horaInicio));
+                Time horaInicioTime = Time.valueOf(horaInicio);
+                descanso.setHoraInicio(horaInicioTime);
+                System.out.println("🔄 [Servidor] DescansoDTO.toEntity() - Tipo: " + this.tipoDescanso +
+                    ", horaInicioLocal String: " + this.horaInicioLocal + " → Time: " + horaInicioTime);
+            } else {
+                System.out.println("🔄 [Servidor] DescansoDTO.toEntity() - Tipo: " + this.tipoDescanso +
+                    ", horaInicioLocal: null o vacío");
             }
 
             return descanso;
+        }
+
+        /**
+         * Convierte una entidad DescansoDia a DTO
+         */
+        public static DescansoDTO fromEntity(DescansoDia descanso) {
+            DescansoDTO dto = new DescansoDTO();
+            dto.setTipoDescanso(descanso.getTipoDescanso() != null ? descanso.getTipoDescanso().name() : null);
+            dto.setDuracionMinutos(descanso.getDuracionMinutos());
+
+            // Convertir hora de inicio
+            if (descanso.getHoraInicio() != null) {
+                dto.setHoraInicioLocal(descanso.getHoraInicio().toLocalTime().toString());
+            }
+
+            return dto;
         }
     }
 }

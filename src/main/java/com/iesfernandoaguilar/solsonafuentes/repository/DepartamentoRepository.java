@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -25,6 +26,8 @@ public interface DepartamentoRepository extends JpaRepository<Departamento, Long
     @Query("SELECT d FROM Departamento d WHERE d.subgrupo.grupo.idGrupo = :idGrupo AND LOWER(d.nombre) LIKE LOWER(CONCAT('%', :filtro, '%'))")
     List<Departamento> buscarDepartamentosPorNombre(@Param("idGrupo") Long idGrupo, @Param("filtro") String filtro);
 
-    void deleteByIdDepartamento(Long idDepartamento);
-    
+    @Modifying
+    @Query("DELETE FROM Departamento d WHERE d.idDepartamento = :idDepartamento")
+    void deleteByIdDepartamento(@Param("idDepartamento") Long idDepartamento);
+
 }

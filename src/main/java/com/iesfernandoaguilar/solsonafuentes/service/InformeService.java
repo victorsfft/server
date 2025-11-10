@@ -1,12 +1,15 @@
 package com.iesfernandoaguilar.solsonafuentes.service;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.iesfernandoaguilar.solsonafuentes.model.Estadistica;
 import com.iesfernandoaguilar.solsonafuentes.model.Historial;
@@ -35,6 +38,7 @@ public class InformeService {
     /**
      * Genera un informe PDF de jornada laboral
      */
+    @Transactional
     public String generarInformeJornadaLaboral(
             Long idGrupo,
             Long idUsuario,
@@ -43,8 +47,14 @@ public class InformeService {
             String rutaDestino) {
 
         try {
-            String nombreArchivo = rutaDestino + "/informe_jornada_" +
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+            // Crear directorio si no existe
+            File directorio = new File(rutaDestino);
+            if (!directorio.exists()) {
+                directorio.mkdirs();
+            }
+
+            String nombreArchivo = rutaDestino + File.separator + "informe_jornada_" +
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
 
             PdfWriter writer = new PdfWriter(new FileOutputStream(nombreArchivo));
             PdfDocument pdf = new PdfDocument(writer);
@@ -114,6 +124,7 @@ public class InformeService {
     /**
      * Genera un informe PDF de estadísticas de tareas
      */
+    @Transactional
     public String generarInformeEstadisticas(
             Long idGrupo,
             Long idUsuario,
@@ -122,8 +133,14 @@ public class InformeService {
             String rutaDestino) {
 
         try {
-            String nombreArchivo = rutaDestino + "/informe_estadisticas_" +
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+            // Crear directorio si no existe
+            File directorio = new File(rutaDestino);
+            if (!directorio.exists()) {
+                directorio.mkdirs();
+            }
+
+            String nombreArchivo = rutaDestino + File.separator + "informe_estadisticas_" +
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
 
             PdfWriter writer = new PdfWriter(new FileOutputStream(nombreArchivo));
             PdfDocument pdf = new PdfDocument(writer);
@@ -197,6 +214,7 @@ public class InformeService {
     /**
      * Genera un informe PDF de resumen general (combina jornada y estadísticas)
      */
+    @Transactional
     public String generarInformeResumen(
             Long idGrupo,
             Long idUsuario,
@@ -206,8 +224,14 @@ public class InformeService {
             String observaciones) {
 
         try {
-            String nombreArchivo = rutaDestino + "/informe_resumen_" +
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+            // Crear directorio si no existe
+            File directorio = new File(rutaDestino);
+            if (!directorio.exists()) {
+                directorio.mkdirs();
+            }
+
+            String nombreArchivo = rutaDestino + File.separator + "informe_resumen_" +
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
 
             PdfWriter writer = new PdfWriter(new FileOutputStream(nombreArchivo));
             PdfDocument pdf = new PdfDocument(writer);

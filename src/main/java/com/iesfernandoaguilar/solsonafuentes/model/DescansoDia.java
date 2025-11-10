@@ -32,7 +32,7 @@ public class DescansoDia {
     private Integer duracionMinutos;
     
     @Temporal(TemporalType.TIME)
-    @Column(name = "hora_inicio", nullable = false)
+    @Column(name = "hora_inicio", nullable = true)
     private Time horaInicio;
 
     //Relaciones Many-to-One

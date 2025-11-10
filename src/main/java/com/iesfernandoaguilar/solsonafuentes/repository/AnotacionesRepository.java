@@ -15,11 +15,9 @@ public interface AnotacionesRepository extends JpaRepository<Anotaciones, Long> 
 
     Optional<Anotaciones> findByIdAnotacion(Long idAnotacion);
 
-    @Query("SELECT a FROM Anotaciones a WHERE a.usuario.idUsuario = :idUsuario ORDER BY a.fecha DESC")
-    List<Anotaciones> obtenerAnotacionesPorUsuario(@Param("idUsuario") Long idUsuario);
+    @Query("SELECT a FROM Anotaciones a WHERE a.usuario.idUsuario = :idUsuario ORDER BY a.fecha DESC, a.fechaCreacion DESC")
+    List<Anotaciones> findByUsuarioId(@Param("idUsuario") Long idUsuario);
 
-    @Query("SELECT a FROM Anotaciones a WHERE a.usuario.idUsuario = :idUsuario AND a.fecha = :fecha")
-    List<Anotaciones> obtenerAnotacionesPorUsuarioYFecha(@Param("idUsuario") Long idUsuario, @Param("fecha") java.time.LocalDate fecha);
-
-    void deleteByIdAnotacion(Long idAnotacion);
+    @Query("SELECT a FROM Anotaciones a LEFT JOIN FETCH a.usuario WHERE a.usuario.idUsuario = :idUsuario ORDER BY a.fecha DESC, a.fechaCreacion DESC")
+    List<Anotaciones> findByUsuarioIdWithUsuario(@Param("idUsuario") Long idUsuario);
 }

@@ -1,7 +1,9 @@
 package com.iesfernandoaguilar.solsonafuentes.service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,8 +32,28 @@ public class TareaService {
         return tareaRepository.findByIdTareaWithUsuarios(idTarea);
     }
 
+    @Transactional
     public List<Tarea> obtenerTareasPorGrupo(Long idGrupo) {
-        return tareaRepository.obtenerTareasPorGrupo(idGrupo);
+        // Primera pasada: obtener tareas con usuarios asignados
+        List<Tarea> tareasConUsuarios = tareaRepository.obtenerTareasPorGrupoWithUsuarios(idGrupo);
+
+        // Crear un mapa para acceso rápido por ID
+        Map<Long, Tarea> tareaMap = new HashMap<>();
+        for (Tarea t : tareasConUsuarios) {
+            tareaMap.put(t.getIdTarea(), t);
+        }
+
+        // Segunda pasada: cargar departamentos para cada tarea
+        List<Tarea> tareasConDepartamentos = tareaRepository.obtenerTareasPorGrupoWithDepartamentos(idGrupo);
+        for (Tarea t : tareasConDepartamentos) {
+            Tarea tareaOriginal = tareaMap.get(t.getIdTarea());
+            if (tareaOriginal != null) {
+                // Las colecciones ya están inicializadas por Hibernate
+                tareaOriginal.getDepartamentosAsignados().size(); // Forzar inicialización
+            }
+        }
+
+        return tareasConUsuarios;
     }
 
     public List<Tarea> obtenerTareasAsignadasAUsuario(Long idUsuario) {
@@ -63,6 +85,48 @@ public class TareaService {
     @Transactional
     public Tarea actualizarTarea(Tarea tarea) {
         return tareaRepository.save(tarea);
+    }
+
+    @Transactional
+    public Tarea actualizarTareaConAsignaciones(Long idTarea, String titulo, String descripcion,
+                                                Prioridad prioridad, java.time.LocalDate fechaFin,
+                                                List<Long> idsUsuarios, List<Long> idsDepartamentos) {
+        // Obtener tarea con usuarios inicializados
+        Optional<Tarea> tareaOpt = tareaRepository.findByIdTareaWithUsuarios(idTarea);
+        if (!tareaOpt.isPresent()) {
+            return null;
+        }
+
+        Tarea tarea = tareaOpt.get();
+
+        // Actualizar campos básicos
+        tarea.setTitulo(titulo);
+        tarea.setDescripcion(descripcion);
+        tarea.setPrioridad(prioridad);
+        tarea.setFechaFin(fechaFin);
+
+        // Limpiar y actualizar usuarios asignados
+        tarea.getUsuariosAsignados().clear();
+        tareaRepository.flush(); // Forzar persistencia de la limpieza
+
+        // Obtener nuevamente la tarea con departamentos para limpiarlos
+        tareaOpt = tareaRepository.findByIdTareaWithDepartamentos(idTarea);
+        if (tareaOpt.isPresent()) {
+            tarea = tareaOpt.get();
+            tarea.getDepartamentosAsignados().clear();
+            tareaRepository.flush();
+        }
+
+        // Re-obtener la tarea para asignar nuevos valores
+        tareaOpt = tareaRepository.findByIdTarea(idTarea);
+        if (tareaOpt.isPresent()) {
+            tarea = tareaOpt.get();
+        }
+
+        // Guardar cambios básicos
+        tarea = tareaRepository.save(tarea);
+
+        return tarea;
     }
 
     @Transactional

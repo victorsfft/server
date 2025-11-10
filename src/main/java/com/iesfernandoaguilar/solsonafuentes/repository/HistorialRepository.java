@@ -15,7 +15,11 @@ import com.iesfernandoaguilar.solsonafuentes.model.Historial;
 public interface HistorialRepository extends JpaRepository<Historial, Long> {
 
     // Obtener historial por grupo
-    @Query("SELECT h FROM Historial h WHERE h.grupo.idGrupo = :idGrupo ORDER BY h.fechaHora DESC")
+    @Query("SELECT h FROM Historial h " +
+           "LEFT JOIN FETCH h.usuario " +
+           "LEFT JOIN FETCH h.realizadoPor " +
+           "LEFT JOIN FETCH h.grupo " +
+           "WHERE h.grupo.idGrupo = :idGrupo ORDER BY h.fechaHora DESC")
     List<Historial> obtenerHistorialPorGrupo(@Param("idGrupo") Long idGrupo);
 
     // Obtener historial por usuario (afectado)

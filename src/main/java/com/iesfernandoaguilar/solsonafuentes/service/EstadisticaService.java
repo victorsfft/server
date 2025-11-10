@@ -30,6 +30,9 @@ public class EstadisticaService {
     @Autowired
     private JornadaLaboralService jornadaLaboralService;
 
+    @Autowired
+    private com.iesfernandoaguilar.solsonafuentes.repository.GrupoRepository grupoRepository;
+
     /**
      * Obtiene o crea la estadística actual para un usuario
      */
@@ -293,5 +296,221 @@ public class EstadisticaService {
      */
     public List<Estadistica> obtenerEstadisticasGrupoPorRango(Long idGrupo, LocalDate fechaDesde, LocalDate fechaHasta) {
         return estadisticaRepository.obtenerEstadisticasGrupoPorRango(idGrupo, fechaDesde, fechaHasta);
+    }
+
+    /**
+     * Calcula estadísticas con filtros personalizados
+     * @param idGrupo ID del grupo
+     * @param idUsuario ID del usuario (null para todos)
+     * @param idDepartamento ID del departamento (null para todos)
+     * @param idSubgrupo ID del subgrupo (null para todos)
+     * @param fechaDesde Fecha desde (null para usar fecha predeterminada)
+     * @param fechaHasta Fecha hasta (null para usar hoy)
+     * @return Lista de estadísticas calculadas por usuario
+     */
+    @Transactional
+    public List<Estadistica> calcularEstadisticasConFiltros(
+            Long idGrupo,
+            Long idUsuario,
+            Long idDepartamento,
+            Long idSubgrupo,
+            LocalDate fechaDesde,
+            LocalDate fechaHasta) {
+
+        // Establecer fechas por defecto si no se proporcionan
+        LocalDate hoy = LocalDate.now();
+        if (fechaHasta == null) {
+            fechaHasta = hoy;
+        }
+        if (fechaDesde == null) {
+            fechaDesde = fechaHasta.minusDays(30); // Últimos 30 días por defecto
+        }
+
+        // Obtener todas las tareas del grupo
+        List<Tarea> todasLasTareas = tareaRepository.obtenerTareasPorGrupo(idGrupo);
+        System.out.println("📊 Total tareas en el grupo: " + todasLasTareas.size());
+
+        // Filtrar tareas por usuario/departamento/subgrupo y fechas
+        List<Tarea> tareasFiltradas = filtrarTareas(todasLasTareas, idUsuario, idDepartamento, idSubgrupo, fechaDesde, fechaHasta);
+        System.out.println("📊 Tareas filtradas: " + tareasFiltradas.size());
+        System.out.println("📊 Filtros aplicados - Usuario: " + idUsuario + ", Depto: " + idDepartamento +
+                           ", Subgrupo: " + idSubgrupo + ", Desde: " + fechaDesde + ", Hasta: " + fechaHasta);
+
+        java.util.List<Estadistica> estadisticas = new java.util.ArrayList<>();
+
+        // Opción 1: Si NO hay filtro de usuario (TODOS) -> Contar cada tarea UNA vez
+        if (idUsuario == null) {
+            System.out.println("📊 Modo: TODOS - Contando tareas únicas (sin duplicados)");
+
+            Estadistica est = new Estadistica();
+            est.setFecha(hoy);
+            est.setUsuario(null); // No hay usuario específico
+
+            // Calcular estadísticas de tareas únicas
+            int tareasCompletadas = 0;
+            int tareasPendientes = 0;
+            int tareasRetrasadas = 0;
+
+            // Usar un Set para evitar contar la misma tarea varias veces
+            java.util.Set<Long> tareasContadas = new java.util.HashSet<>();
+            for (Tarea tarea : tareasFiltradas) {
+                // Solo contar cada tarea una vez
+                if (tareasContadas.add(tarea.getIdTarea())) {
+                    if (tarea.getEstado() == EstadoTarea.COMPLETADA) {
+                        tareasCompletadas++;
+                    } else if (tarea.getEstado() == EstadoTarea.PENDIENTE) {
+                        tareasPendientes++;
+                        if (tarea.getFechaFin() != null && tarea.getFechaFin().isBefore(hoy)) {
+                            tareasRetrasadas++;
+                        }
+                    }
+                }
+            }
+
+            est.setTareasCompletadasTotales(tareasCompletadas);
+            est.setTareasPendientesTotales(tareasPendientes);
+            est.setTareasRetrasadasTotales(tareasRetrasadas);
+
+            // Para "Todos", calcular horas sumando todos los usuarios del grupo
+            // Obtener todos los usuarios del grupo
+            Grupo grupo = grupoRepository.findById(idGrupo).orElse(null);
+            Double horasTotales = 0.0;
+            Double horasExtras = 0.0;
+
+            if (grupo != null && grupo.getUsuarios() != null) {
+                for (Usuario u : grupo.getUsuarios()) {
+                    Double h = jornadaLaboralService.obtenerHorasTotalesUsuario(u.getIdUsuario(), fechaDesde, fechaHasta);
+                    Double he = jornadaLaboralService.obtenerHorasExtrasUsuario(u.getIdUsuario(), fechaDesde, fechaHasta);
+                    horasTotales += (h != null ? h : 0.0);
+                    horasExtras += (he != null ? he : 0.0);
+                }
+            }
+
+            est.setHorasTotales(horasTotales);
+            est.setHorasExtraTotales(horasExtras);
+            est.setHorasTotalesSemana(horasTotales);
+            est.setHorasExtraSemana(horasExtras);
+
+            // Calcular tasa de cumplimiento de tareas
+            int totalTareas = tareasCompletadas + tareasPendientes;
+            double cumplimiento = totalTareas > 0 ? (tareasCompletadas * 100.0 / totalTareas) : 0.0;
+            est.setCumplimientoJornadaTotales(cumplimiento);
+
+            System.out.println("📊 TODOS: Completadas=" + tareasCompletadas + ", Pendientes=" + tareasPendientes +
+                               ", Retrasadas=" + tareasRetrasadas + " (tareas únicas)");
+
+            estadisticas.add(est);
+
+        } else {
+            // Opción 2: Si HAY filtro de usuario -> Contar todas sus tareas asignadas (incluidas compartidas)
+            System.out.println("📊 Modo: Usuario específico - Contando todas las tareas asignadas");
+
+            // Agrupar tareas por usuario
+            java.util.Map<Long, List<Tarea>> tareasPorUsuario = new java.util.HashMap<>();
+            for (Tarea tarea : tareasFiltradas) {
+                if (tarea.getUsuariosAsignados() != null) {
+                    for (Usuario usuario : tarea.getUsuariosAsignados()) {
+                        Long userId = usuario.getIdUsuario();
+
+                        // Solo agregar tareas para el usuario filtrado
+                        if (userId.equals(idUsuario)) {
+                            tareasPorUsuario.computeIfAbsent(userId, k -> new java.util.ArrayList<>()).add(tarea);
+                        }
+                    }
+                }
+            }
+            System.out.println("📊 Usuarios con tareas: " + tareasPorUsuario.size());
+
+            // Calcular estadísticas para el usuario
+            for (java.util.Map.Entry<Long, List<Tarea>> entry : tareasPorUsuario.entrySet()) {
+                Long userId = entry.getKey();
+                List<Tarea> tareasUsuario = entry.getValue();
+
+                Estadistica est = new Estadistica();
+                // Obtener el usuario desde el mapa
+                Usuario usuario = tareasUsuario.get(0).getUsuariosAsignados().stream()
+                    .filter(u -> u.getIdUsuario().equals(userId))
+                    .findFirst()
+                    .orElse(null);
+                est.setUsuario(usuario);
+                est.setFecha(hoy);
+
+                // Calcular estadísticas de tareas
+                int tareasCompletadas = 0;
+                int tareasPendientes = 0;
+                int tareasRetrasadas = 0;
+
+                for (Tarea tarea : tareasUsuario) {
+                    if (tarea.getEstado() == EstadoTarea.COMPLETADA) {
+                        tareasCompletadas++;
+                    } else if (tarea.getEstado() == EstadoTarea.PENDIENTE) {
+                        tareasPendientes++;
+                        if (tarea.getFechaFin() != null && tarea.getFechaFin().isBefore(hoy)) {
+                            tareasRetrasadas++;
+                        }
+                    }
+                }
+
+                est.setTareasCompletadasTotales(tareasCompletadas);
+                est.setTareasPendientesTotales(tareasPendientes);
+                est.setTareasRetrasadasTotales(tareasRetrasadas);
+
+                // Calcular estadísticas de jornada laboral
+                Double horasTotales = jornadaLaboralService.obtenerHorasTotalesUsuario(userId, fechaDesde, fechaHasta);
+                Double horasExtras = jornadaLaboralService.obtenerHorasExtrasUsuario(userId, fechaDesde, fechaHasta);
+
+                est.setHorasTotales(horasTotales != null ? horasTotales : 0.0);
+                est.setHorasExtraTotales(horasExtras != null ? horasExtras : 0.0);
+
+                // También setear valores "Semana" para las gráficas
+                est.setHorasTotalesSemana(horasTotales != null ? horasTotales : 0.0);
+                est.setHorasExtraSemana(horasExtras != null ? horasExtras : 0.0);
+
+                // Calcular tasa de cumplimiento de tareas
+                int totalTareas = tareasCompletadas + tareasPendientes;
+                double cumplimiento = totalTareas > 0 ? (tareasCompletadas * 100.0 / totalTareas) : 0.0;
+                est.setCumplimientoJornadaTotales(cumplimiento);
+
+                System.out.println("📊 Usuario " + userId + " (" + (usuario != null ? usuario.getNombre() : "null") + "): " +
+                                   "Completadas=" + tareasCompletadas + ", Pendientes=" + tareasPendientes + ", Retrasadas=" + tareasRetrasadas);
+
+                estadisticas.add(est);
+            }
+        }
+
+        System.out.println("📊 Total estadísticas devueltas: " + estadisticas.size());
+        return estadisticas;
+    }
+
+    /**
+     * Filtra tareas según los criterios especificados
+     */
+    private List<Tarea> filtrarTareas(List<Tarea> tareas, Long idUsuario, Long idDepartamento, Long idSubgrupo, LocalDate fechaDesde, LocalDate fechaHasta) {
+        return tareas.stream()
+                .filter(tarea -> tarea.getUsuariosAsignados() != null && !tarea.getUsuariosAsignados().isEmpty())
+                .filter(tarea -> {
+                    if (idUsuario == null) return true;
+                    return tarea.getUsuariosAsignados().stream()
+                            .anyMatch(u -> u.getIdUsuario().equals(idUsuario));
+                })
+                .filter(tarea -> {
+                    if (idDepartamento == null) return true;
+                    return tarea.getUsuariosAsignados().stream()
+                            .anyMatch(u -> u.getDepartamento() != null &&
+                                    u.getDepartamento().getIdDepartamento().equals(idDepartamento));
+                })
+                .filter(tarea -> {
+                    if (idSubgrupo == null) return true;
+                    return tarea.getUsuariosAsignados().stream()
+                            .anyMatch(u -> u.getSubgrupo() != null &&
+                                    u.getSubgrupo().getIdSubgrupo().equals(idSubgrupo));
+                })
+                .filter(tarea -> {
+                    // NO filtrar por fechas en las tareas
+                    // Las tareas se muestran siempre (pendientes y completadas)
+                    // Solo las horas trabajadas se filtran por período
+                    return true;
+                })
+                .collect(java.util.stream.Collectors.toList());
     }
 }
