@@ -1816,6 +1816,7 @@ public class UsuarioHandler implements Runnable{
                         mensajeServer.setTipo("DAR_HISTORIAL_FILTROS");
                         try {
                             String filtrosJson = mensajeUser.getArgs().get(0);
+                            System.out.println("DEBUG: Filtros JSON recibidos del cliente: " + filtrosJson); // DEBUG
                             ObjectMapper localMapper = new ObjectMapper();
                             localMapper.registerModule(new JavaTimeModule());
 

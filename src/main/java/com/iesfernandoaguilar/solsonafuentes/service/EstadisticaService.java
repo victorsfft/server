@@ -309,19 +309,50 @@ public class EstadisticaService {
             filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
         }
 
+        LocalDate fechaDesde = filtros.getFechaDesde();
+        LocalDate fechaHasta = filtros.getFechaHasta();
+
+        if (filtros.getPeriodo() != null && !filtros.getPeriodo().isEmpty()) {
+            LocalDate[] fechas = getFechasFromPeriodo(filtros.getPeriodo());
+            fechaDesde = fechas[0];
+            fechaHasta = fechas[1];
+        }
+
         return calcularEstadisticasConFiltros(
             filtros.getIdGrupo(),
             filtros.getIdUsuario(),
             filtros.getIdDepartamento(),
             filtros.getIdSubgrupo(),
-            filtros.getFechaDesde(),
-            filtros.getFechaHasta()
+            fechaDesde,
+            fechaHasta
         );
     }
 
     private boolean esAdmin(Usuario usuario) {
         String rol = usuario.getRol().name();
         return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
+    }
+
+    private LocalDate[] getFechasFromPeriodo(String periodo) {
+        LocalDate hoy = LocalDate.now();
+        LocalDate fechaDesde = null;
+        LocalDate fechaHasta = hoy;
+
+        switch (periodo) {
+            case "ultimos_30_dias":
+                fechaDesde = hoy.minusDays(30);
+                break;
+            case "ultimos_7_dias":
+                fechaDesde = hoy.minusDays(7);
+                break;
+            case "hoy":
+                fechaDesde = hoy;
+                break;
+            default:
+                fechaDesde = hoy.minusDays(30); // Default to last 30 days
+                break;
+        }
+        return new LocalDate[]{fechaDesde, fechaHasta};
     }
 
     /**

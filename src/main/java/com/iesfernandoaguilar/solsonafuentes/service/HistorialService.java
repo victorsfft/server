@@ -14,6 +14,13 @@ import com.iesfernandoaguilar.solsonafuentes.repository.HistorialRepository;
 
 import jakarta.transaction.Transactional;
 
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 public class HistorialService {
 
@@ -136,9 +143,63 @@ public class HistorialService {
             filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
         }
 
-        List<Historial> resultados = historialRepository.obtenerHistorialPorGrupo(filtros.getIdGrupo());
+        System.out.println("DEBUG: Filtros aplicados en HistorialService: " + filtros); // DEBUG
 
-        return aplicarFiltrosAHistorial(resultados, filtros);
+        return historialRepository.findAll(getSpecification(filtros));
+    }
+
+    private Specification<Historial> getSpecification(com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosHistorial filtros) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            query.distinct(true);
+            root.fetch("usuario", JoinType.LEFT);
+            root.fetch("realizadoPor", JoinType.LEFT);
+            root.fetch("grupo", JoinType.LEFT);
+            
+            predicates.add(cb.equal(root.get("grupo").get("idGrupo"), filtros.getIdGrupo()));
+
+            if (filtros.tieneUsuario()) {
+                Predicate realizadoPor = cb.equal(root.get("realizadoPor").get("idUsuario"), filtros.getIdUsuario());
+                Predicate afectado = cb.equal(root.get("usuario").get("idUsuario"), filtros.getIdUsuario());
+                predicates.add(cb.or(realizadoPor, afectado));
+            }
+
+            if (filtros.tieneTipoAccion()) {
+                try {
+                    TipoAccionHistorial tipo = TipoAccionHistorial.valueOf(filtros.getTipoAccion().toUpperCase());
+                    predicates.add(cb.equal(root.get("tipoAccion"), tipo));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("Tipo de acción de historial inválido: " + filtros.getTipoAccion());
+                }
+            }
+
+            if (filtros.tieneEntidad()) {
+                predicates.add(cb.equal(root.get("tipoEntidad"), filtros.getEntidad()));
+            }
+
+            if (filtros.tieneFechas()) {
+                if (filtros.getFechaDesde() != null) {
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("fechaHora"), filtros.getFechaDesde().atStartOfDay()));
+                }
+                if (filtros.getFechaHasta() != null) {
+                    predicates.add(cb.lessThan(root.get("fechaHora"), filtros.getFechaHasta().plusDays(1).atStartOfDay()));
+                }
+            } else if (filtros.tienePeriodo()) {
+                LocalDateTime fechaInicio = getFechaInicioFromPeriodo(filtros.getPeriodo());
+                if (fechaInicio != null) {
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("fechaHora"), fechaInicio));
+                }
+            }
+
+            if (filtros.tieneBusqueda()) {
+                predicates.add(cb.like(cb.lower(root.get("descripcion")), "%" + filtros.getTextoBusqueda().toLowerCase() + "%"));
+            }
+            
+            query.orderBy(cb.desc(root.get("fechaHora")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     private boolean esAdmin(Usuario usuario) {
@@ -146,23 +207,17 @@ public class HistorialService {
         return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
     }
 
-    private List<Historial> aplicarFiltrosAHistorial(List<Historial> lista, com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosHistorial filtros) {
-        return lista.stream()
-            .filter(h -> !filtros.tieneUsuario() || (h.getRealizadoPor() != null && h.getRealizadoPor().getIdUsuario().equals(filtros.getIdUsuario())))
-            .filter(h -> !filtros.tieneTipoAccion() || (h.getTipoAccion() != null && h.getTipoAccion().name().equalsIgnoreCase(filtros.getTipoAccion())))
-            .filter(h -> !filtros.tieneEntidad() || (h.getTipoEntidad() != null && h.getTipoEntidad().equalsIgnoreCase(filtros.getEntidad())))
-            .filter(h -> {
-                if (!filtros.tieneFechas()) return true;
-                LocalDateTime fechaHistorial = h.getFechaHora();
-                if (filtros.getFechaDesde() != null && fechaHistorial.isBefore(filtros.getFechaDesde().atStartOfDay())) return false;
-                if (filtros.getFechaHasta() != null && fechaHistorial.isAfter(filtros.getFechaHasta().plusDays(1).atStartOfDay())) return false;
-                return true;
-            })
-            .filter(h -> {
-                if (!filtros.tieneBusqueda()) return true;
-                String busqueda = filtros.getTextoBusqueda().toLowerCase();
-                return h.getDescripcion().toLowerCase().contains(busqueda);
-            })
-            .collect(java.util.stream.Collectors.toList());
+    private LocalDateTime getFechaInicioFromPeriodo(String periodo) {
+        LocalDateTime now = LocalDateTime.now();
+        switch (periodo) {
+            case "ultimos_30_dias":
+                return now.minusDays(30);
+            case "ultimos_7_dias":
+                return now.minusDays(7);
+            case "hoy":
+                return now.toLocalDate().atStartOfDay();
+            default:
+                return null;
+        }
     }
 }
