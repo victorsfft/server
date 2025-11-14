@@ -34,6 +34,14 @@ C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoag
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\DescansoJornada.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Estadistica.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Evento.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosBase.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosDepartamento.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosEmpleado.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosEstadisticas.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosHistorial.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosIncidencia.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosSubgrupo.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\filtros\FiltrosTarea.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Grupo.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Historial.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\HorarioDia.java

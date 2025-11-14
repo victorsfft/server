@@ -298,6 +298,32 @@ public class EstadisticaService {
         return estadisticaRepository.obtenerEstadisticasGrupoPorRango(idGrupo, fechaDesde, fechaHasta);
     }
 
+    @Transactional
+    public List<Estadistica> obtenerConFiltros(com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosEstadisticas filtros, Usuario usuarioActual) {
+        if (esAdmin(usuarioActual) && !filtros.tieneGrupo()) {
+            System.out.println("⚠️ Admin sin grupo seleccionado, devolviendo lista vacía para Estadisticas");
+            return new java.util.ArrayList<>();
+        }
+
+        if (!esAdmin(usuarioActual)) {
+            filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
+        }
+
+        return calcularEstadisticasConFiltros(
+            filtros.getIdGrupo(),
+            filtros.getIdUsuario(),
+            filtros.getIdDepartamento(),
+            filtros.getIdSubgrupo(),
+            filtros.getFechaDesde(),
+            filtros.getFechaHasta()
+        );
+    }
+
+    private boolean esAdmin(Usuario usuario) {
+        String rol = usuario.getRol().name();
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
+    }
+
     /**
      * Calcula estadísticas con filtros personalizados
      * @param idGrupo ID del grupo

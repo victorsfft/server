@@ -74,6 +74,39 @@ public class DepartamentoService {
         }
         return null;
     }
+
+    @Transactional
+    public List<Departamento> obtenerConFiltros(com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosDepartamento filtros, Usuario usuarioActual) {
+        if (esAdmin(usuarioActual) && !filtros.tieneGrupo()) {
+            System.out.println("⚠️ Admin sin grupo seleccionado, devolviendo lista vacía para Departamentos");
+            return new java.util.ArrayList<>();
+        }
+
+        if (!esAdmin(usuarioActual)) {
+            filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
+        }
+
+        List<Departamento> resultados = departamentoRepository.obtenerTodosDepartamentos(filtros.getIdGrupo());
+
+        return aplicarFiltrosADepartamentos(resultados, filtros);
+    }
+
+    private boolean esAdmin(Usuario usuario) {
+        String rol = usuario.getRol().name();
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
+    }
+
+    private List<Departamento> aplicarFiltrosADepartamentos(List<Departamento> lista, com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosDepartamento filtros) {
+        return lista.stream()
+            .filter(depto -> !filtros.tieneSubgrupo() || (depto.getSubgrupo() != null && depto.getSubgrupo().getIdSubgrupo().equals(filtros.getIdSubgrupo())))
+            .filter(depto -> {
+                if (!filtros.tieneBusqueda()) return true;
+                String busqueda = filtros.getTextoBusqueda().toLowerCase();
+                return depto.getNombre().toLowerCase().contains(busqueda) ||
+                       (depto.getSubgrupo() != null && depto.getSubgrupo().getNombre().toLowerCase().contains(busqueda));
+            })
+            .collect(java.util.stream.Collectors.toList());
+    }
 }
 
 

@@ -58,6 +58,13 @@ import com.iesfernandoaguilar.solsonafuentes.model.Notificacion;
 import com.iesfernandoaguilar.solsonafuentes.model.Subgrupo;
 import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
 import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
+import com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosDepartamento;
+import com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosSubgrupo;
+import com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosIncidencia;
+import com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosTarea;
+import com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosHistorial;
+import com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosEstadisticas;
+import com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosEmpleado;
 import com.iesfernandoaguilar.solsonafuentes.service.AnotacionesService;
 import com.iesfernandoaguilar.solsonafuentes.service.ComentarioService;
 import com.iesfernandoaguilar.solsonafuentes.service.ConfiguracionJornadaService;
@@ -162,7 +169,6 @@ public class UsuarioHandler implements Runnable{
                 
                 switch(mensajeUser.getTipo()) {
                     case "LOGOUT":
-                        server.cerrarSesion(this.usuarioId);
                         cierraSesion = true;
                         break;
                     case "COMPROBAR_EMPRESA":
@@ -299,6 +305,39 @@ public class UsuarioHandler implements Runnable{
                         mensajeServer.addArg(json);
                         enviar(mensajeServer);
                         break;
+                    case "OBTENER_SUBGRUPOS_FILTROS":
+                        mensajeServer.setTipo("DAR_SUBGRUPOS_FILTROS");
+                        try {
+                            String filtrosJson = mensajeUser.getArgs().get(0);
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+
+                            FiltrosSubgrupo filtros = localMapper.readValue(filtrosJson, FiltrosSubgrupo.class);
+
+                            System.out.println("📊 Filtros de subgrupos recibidos: " + filtros);
+
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
+
+                            List<Subgrupo> resultados = subgrupoService.obtenerConFiltros(filtros, usuarioActual);
+
+                            List<SubgrupoDTO> subgruposFiltradosDtos = resultados.stream()
+                                .map(SubgrupoDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            String jsonResponse = localMapper.writeValueAsString(subgruposFiltradosDtos);
+                            mensajeServer.addArg(jsonResponse);
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Error procesando filtros de Subgrupos");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
+                        enviar(mensajeServer);
+                        break;
                     case "OBTENER_EMPLEADOS":
                         mensajeServer.setTipo("DAR_EMPLEADOS");
 
@@ -321,33 +360,94 @@ public class UsuarioHandler implements Runnable{
                         }
 
                         mensajeServer.addArg(json);
+                                    enviar(mensajeServer);
+                                    break;
+                        
+                                    case "OBTENER_EMPLEADOS_FILTROS":
+                        mensajeServer.setTipo("DAR_EMPLEADOS_FILTROS");
+                        try {
+                            String filtrosJson = mensajeUser.getArgs().get(0);
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+
+                            FiltrosEmpleado filtros = localMapper.readValue(filtrosJson, FiltrosEmpleado.class);
+
+                            System.out.println("📊 Filtros de empleados recibidos: " + filtros);
+
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
+
+                            List<Usuario> resultados = usuarioService.obtenerConFiltros(filtros, usuarioActual);
+
+                            List<UsuarioDTO> empleadosFiltradosDtos = resultados.stream()
+                                .map(UsuarioDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            String jsonResponse = localMapper.writeValueAsString(empleadosFiltradosDtos);
+                            mensajeServer.addArg(jsonResponse);
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Error procesando filtros de Empleados");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
                         enviar(mensajeServer);
                         break;
+                        
+                                    case "OBTENER_DEPARTAMENTOS_FILTROS":
+                        mensajeServer.setTipo("DAR_DEPARTAMENTOS_FILTROS");
+                        try {
+                            String filtrosJson = mensajeUser.getArgs().get(0);
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+
+                            FiltrosDepartamento filtros = localMapper.readValue(filtrosJson, FiltrosDepartamento.class);
+
+                            System.out.println("📊 Filtros de departamentos recibidos: " + filtros);
+
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
+
+                            List<Departamento> resultados = departamentoService.obtenerConFiltros(filtros, usuarioActual);
+
+                            List<DepartamentoDTO> departamentosFiltradosDtos = resultados.stream()
+                                .map(DepartamentoDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            String jsonResponse = localMapper.writeValueAsString(departamentosFiltradosDtos);
+                            mensajeServer.addArg(jsonResponse);
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Error procesando filtros de Departamentos");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
                     case "OBTENER_DEPARTAMENTOS":
                         mensajeServer.setTipo("DAR_DEPARTAMENTOS");
-
-                        idSubgrupo = Long.valueOf(mensajeUser.getArgs().get(0));
-                        List<Departamento> departamentos = departamentoService.obtenerDepartamentos(idSubgrupo);
-                        List<DepartamentoDTO> departamentosDTO = departamentos.stream()
-                                                    .map(DepartamentoDTO::fromEntity)
-                                                    .collect(Collectors.toList());
-                       
                         try {
-                            mapper = new ObjectMapper();
-                            mapper.setSerializationInclusion(Include.NON_NULL);
-                            mapper.registerModule(new JavaTimeModule());
-                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            idGrupo = Long.parseLong(mensajeUser.getArgs().get(0));
+                            List<Departamento> departamentos = departamentoService.obtenerTodosDepartamentos(idGrupo);
+                            List<DepartamentoDTO> departamentosDtos = departamentos.stream().map(DepartamentoDTO::fromEntity).collect(Collectors.toList());
 
-                            json = mapper.writeValueAsString(departamentosDTO);
-                            
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+                            String jsonResponse = localMapper.writeValueAsString(departamentosDtos);
+                            mensajeServer.addArg(jsonResponse);
                         } catch (Exception e) {
-                            System.err.println("Error de json");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
                         }
-
-                        mensajeServer.addArg(json);
                         enviar(mensajeServer);
-                        break;
-                    case "CREAR_INVITACION":   
+                        break;                    case "CREAR_INVITACION":   
                         mensajeServer.setTipo("INVITACION_CREADA");
 
                         String email = mensajeUser.getArgs().get(0);
@@ -1203,6 +1303,40 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
+                    case "OBTENER_TAREAS_FILTROS":
+                        mensajeServer.setTipo("DAR_TAREAS_FILTROS");
+                        try {
+                            String filtrosJson = mensajeUser.getArgs().get(0);
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+
+                            FiltrosTarea filtros = localMapper.readValue(filtrosJson, FiltrosTarea.class);
+
+                            System.out.println("📊 Filtros de tareas recibidos: " + filtros);
+
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
+
+                            List<Tarea> resultados = tareaService.obtenerConFiltros(filtros, usuarioActual);
+
+                            List<TareaDTO> tareasFiltradosDtos = resultados.stream()
+                                .map(TareaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            String jsonResponse = localMapper.writeValueAsString(tareasFiltradosDtos);
+                            mensajeServer.addArg(jsonResponse);
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Error procesando filtros de Tareas");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
                     // ==================== CASOS PARA INCIDENCIAS ====================
 
                     case "OBTENER_INCIDENCIAS_GRUPO":
@@ -1297,6 +1431,40 @@ public class UsuarioHandler implements Runnable{
                             e.printStackTrace();
                         }
 
+                        enviar(mensajeServer);
+                        break;
+
+                    case "OBTENER_INCIDENCIAS_FILTROS":
+                        mensajeServer.setTipo("DAR_INCIDENCIAS_FILTROS");
+                        try {
+                            String filtrosJson = mensajeUser.getArgs().get(0);
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+
+                            FiltrosIncidencia filtros = localMapper.readValue(filtrosJson, FiltrosIncidencia.class);
+
+                            System.out.println("📊 Filtros de incidencias recibidos: " + filtros);
+
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
+
+                            List<Incidencia> resultados = incidenciaService.obtenerConFiltros(filtros, usuarioActual);
+
+                            List<IncidenciaDTO> incidenciasFiltradosDtos = resultados.stream()
+                                .map(IncidenciaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            String jsonResponse = localMapper.writeValueAsString(incidenciasFiltradosDtos);
+                            mensajeServer.addArg(jsonResponse);
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Error procesando filtros de Incidencias");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
                         enviar(mensajeServer);
                         break;
 
@@ -1644,6 +1812,40 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
+                    case "OBTENER_HISTORIAL_FILTROS":
+                        mensajeServer.setTipo("DAR_HISTORIAL_FILTROS");
+                        try {
+                            String filtrosJson = mensajeUser.getArgs().get(0);
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+
+                            FiltrosHistorial filtros = localMapper.readValue(filtrosJson, FiltrosHistorial.class);
+
+                            System.out.println("📊 Filtros de historial recibidos: " + filtros);
+
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
+
+                            List<Historial> resultados = historialService.obtenerConFiltros(filtros, usuarioActual);
+
+                            List<HistorialDTO> historialFiltradosDtos = resultados.stream()
+                                .map(HistorialDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            String jsonResponse = localMapper.writeValueAsString(historialFiltradosDtos);
+                            mensajeServer.addArg(jsonResponse);
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Error procesando filtros de Historial");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
+                        enviar(mensajeServer);
+                        break;
+
                     // ==================== JORNADA LABORAL HANDLERS ====================
                     case "REGISTRAR_ENTRADA_JORNADA":
                         mensajeServer.setTipo("ENTRADA_REGISTRADA");
@@ -1918,53 +2120,34 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
-                    case "OBTENER_ESTADISTICAS_GRUPO":
-                        mensajeServer.setTipo("DAR_ESTADISTICAS_GRUPO");
+                    case "OBTENER_ESTADISTICAS_FILTROS":
+                        mensajeServer.setTipo("DAR_ESTADISTICAS_FILTROS");
                         try {
-                            idGrupo = Long.valueOf(mensajeUser.getArgs().get(0));
-                            String idUsuarioStr = mensajeUser.getArgs().size() > 1 ? mensajeUser.getArgs().get(1) : "";
-                            String idDepartamentoStr = mensajeUser.getArgs().size() > 2 ? mensajeUser.getArgs().get(2) : "";
-                            String idSubgrupoStr = mensajeUser.getArgs().size() > 3 ? mensajeUser.getArgs().get(3) : "";
-                            String fechaDesdeStr = mensajeUser.getArgs().size() > 4 ? mensajeUser.getArgs().get(4) : "";
-                            String fechaHastaStr = mensajeUser.getArgs().size() > 5 ? mensajeUser.getArgs().get(5) : "";
+                            String filtrosJson = mensajeUser.getArgs().get(0);
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
 
-                            // Parsear filtros opcionales
-                            Long idUsuarioFiltro = (idUsuarioStr != null && !idUsuarioStr.isEmpty()) ? Long.valueOf(idUsuarioStr) : null;
-                            Long idDepartamentoFiltro = (idDepartamentoStr != null && !idDepartamentoStr.isEmpty()) ? Long.valueOf(idDepartamentoStr) : null;
-                            Long idSubgrupoFiltro = (idSubgrupoStr != null && !idSubgrupoStr.isEmpty()) ? Long.valueOf(idSubgrupoStr) : null;
-                            LocalDate fechaDesde = (fechaDesdeStr != null && !fechaDesdeStr.isEmpty()) ? LocalDate.parse(fechaDesdeStr) : null;
-                            LocalDate fechaHasta = (fechaHastaStr != null && !fechaHastaStr.isEmpty()) ? LocalDate.parse(fechaHastaStr) : null;
+                            FiltrosEstadisticas filtros = localMapper.readValue(filtrosJson, FiltrosEstadisticas.class);
 
-                            System.out.println("📊 Calculando estadísticas con filtros:");
-                            System.out.println("   Grupo: " + idGrupo);
-                            System.out.println("   Usuario: " + (idUsuarioFiltro != null ? idUsuarioFiltro : "TODOS"));
-                            System.out.println("   Departamento: " + (idDepartamentoFiltro != null ? idDepartamentoFiltro : "TODOS"));
-                            System.out.println("   Subgrupo: " + (idSubgrupoFiltro != null ? idSubgrupoFiltro : "TODOS"));
-                            System.out.println("   Fechas: " + (fechaDesde != null ? fechaDesde : "auto") + " a " + (fechaHasta != null ? fechaHasta : "hoy"));
+                            System.out.println("📊 Filtros de estadisticas recibidos: " + filtros);
 
-                            // Calcular estadísticas con filtros
-                            List<Estadistica> estadisticas = estadisticaService.calcularEstadisticasConFiltros(
-                                idGrupo,
-                                idUsuarioFiltro,
-                                idDepartamentoFiltro,
-                                idSubgrupoFiltro,
-                                fechaDesde,
-                                fechaHasta
-                            );
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
 
-                            List<EstadisticaDTO> estadisticasDTOs = estadisticas.stream()
+                            List<Estadistica> resultados = estadisticaService.obtenerConFiltros(filtros, usuarioActual);
+
+                            List<EstadisticaDTO> estadisticasFiltradosDtos = resultados.stream()
                                 .map(EstadisticaDTO::fromEntity)
                                 .collect(Collectors.toList());
 
-                            mapper.registerModule(new JavaTimeModule());
-                            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                            mapper.setSerializationInclusion(Include.NON_NULL);
+                            String jsonResponse = localMapper.writeValueAsString(estadisticasFiltradosDtos);
+                            mensajeServer.addArg(jsonResponse);
 
-                            json = mapper.writeValueAsString(estadisticasDTOs);
-                            mensajeServer.addArg(json);
-                            System.out.println("✅ Estadísticas calculadas: " + estadisticas.size() + " usuarios");
                         } catch (Exception e) {
-                            System.err.println("❌ Error al calcular estadísticas de grupo");
+                            System.err.println("❌ Error procesando filtros de Estadisticas");
                             e.printStackTrace();
                             mensajeServer.addArg("[]");
                         }
@@ -2537,13 +2720,11 @@ public class UsuarioHandler implements Runnable{
                 }
             }
         } catch (java.net.SocketException e) {
-            server.cerrarSesion(usuarioId);
+            System.err.println("Socket cerrado abruptamente por el cliente.");
         } catch (EOFException eOFException) {
-            System.err.println("Se ha cerrado el flujo");
-            server.cerrarSesion(usuarioId);
+            System.err.println("El cliente ha cerrado la conexión.");
         } catch(IOException iOException){
-            System.err.println("ioexception");
-            server.cerrarSesion(usuarioId);
+            System.err.println("Error de I/O en la comunicación con el cliente.");
         }
         System.out.println("usuario handler cerrado");
     }

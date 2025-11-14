@@ -59,4 +59,39 @@ public class IncidenciaService {
     public void eliminarIncidencia(Long idIncidencia) {
         incidenciaRepository.deleteByIdIncidencia(idIncidencia);
     }
+
+    @Transactional
+    public List<Incidencia> obtenerConFiltros(com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosIncidencia filtros, com.iesfernandoaguilar.solsonafuentes.model.Usuario usuarioActual) {
+        if (esAdmin(usuarioActual) && !filtros.tieneGrupo()) {
+            System.out.println("⚠️ Admin sin grupo seleccionado, devolviendo lista vacía para Incidencias");
+            return new java.util.ArrayList<>();
+        }
+
+        if (!esAdmin(usuarioActual)) {
+            filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
+        }
+
+        List<Incidencia> resultados = incidenciaRepository.obtenerIncidenciasPorGrupo(filtros.getIdGrupo());
+
+        return aplicarFiltrosAIncidencias(resultados, filtros);
+    }
+
+    private boolean esAdmin(com.iesfernandoaguilar.solsonafuentes.model.Usuario usuario) {
+        String rol = usuario.getRol().name();
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
+    }
+
+    private List<Incidencia> aplicarFiltrosAIncidencias(List<Incidencia> lista, com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosIncidencia filtros) {
+        return lista.stream()
+            .filter(incidencia -> !filtros.tieneUsuario() || (incidencia.getUsuario() != null && incidencia.getUsuario().getIdUsuario().equals(filtros.getIdUsuario())))
+            .filter(incidencia -> !filtros.tienePrioridad() || (incidencia.getPrioridad() != null && incidencia.getPrioridad().name().equalsIgnoreCase(filtros.getPrioridad())))
+            .filter(incidencia -> !filtros.tieneEstado() || (incidencia.getEstado() != null && incidencia.getEstado().name().equalsIgnoreCase(filtros.getEstado())))
+            .filter(incidencia -> {
+                if (!filtros.tieneBusqueda()) return true;
+                String busqueda = filtros.getTextoBusqueda().toLowerCase();
+                return incidencia.getTitulo().toLowerCase().contains(busqueda) ||
+                       incidencia.getDescripcion().toLowerCase().contains(busqueda);
+            })
+            .collect(java.util.stream.Collectors.toList());
+    }
 }

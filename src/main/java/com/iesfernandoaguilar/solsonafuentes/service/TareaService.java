@@ -190,4 +190,46 @@ public class TareaService {
     public void eliminarTarea(Long idTarea) {
         tareaRepository.deleteByIdTarea(idTarea);
     }
+
+    @Transactional
+    public List<Tarea> obtenerConFiltros(com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosTarea filtros, com.iesfernandoaguilar.solsonafuentes.model.Usuario usuarioActual) {
+        if (esAdmin(usuarioActual) && !filtros.tieneGrupo()) {
+            System.out.println("⚠️ Admin sin grupo seleccionado, devolviendo lista vacía para Tareas");
+            return new java.util.ArrayList<>();
+        }
+
+        if (!esAdmin(usuarioActual)) {
+            filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
+        }
+
+        List<Tarea> resultados = tareaRepository.obtenerTareasPorGrupo(filtros.getIdGrupo());
+
+        return aplicarFiltrosATareas(resultados, filtros, usuarioActual);
+    }
+
+    private boolean esAdmin(com.iesfernandoaguilar.solsonafuentes.model.Usuario usuario) {
+        String rol = usuario.getRol().name();
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
+    }
+
+    private List<Tarea> aplicarFiltrosATareas(List<Tarea> lista, com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosTarea filtros, com.iesfernandoaguilar.solsonafuentes.model.Usuario usuarioActual) {
+        return lista.stream()
+            .filter(tarea -> {
+                if (esAdmin(usuarioActual)) {
+                    return !filtros.tieneUsuario() || tarea.getUsuariosAsignados().stream().anyMatch(u -> u.getIdUsuario().equals(filtros.getIdUsuario()));
+                }
+                // Para usuarios no admin, solo mostrar tareas asignadas a ellos
+                return tarea.getUsuariosAsignados().stream().anyMatch(u -> u.getIdUsuario().equals(usuarioActual.getIdUsuario()));
+            })
+            .filter(tarea -> !filtros.tieneDepartamento() || tarea.getDepartamentosAsignados().stream().anyMatch(d -> d.getIdDepartamento().equals(filtros.getIdDepartamento())))
+            .filter(tarea -> !filtros.tienePrioridad() || (tarea.getPrioridad() != null && tarea.getPrioridad().name().equalsIgnoreCase(filtros.getPrioridad())))
+            .filter(tarea -> !filtros.tieneEstado() || (tarea.getEstado() != null && tarea.getEstado().name().equalsIgnoreCase(filtros.getEstado())))
+            .filter(tarea -> {
+                if (!filtros.tieneBusqueda()) return true;
+                String busqueda = filtros.getTextoBusqueda().toLowerCase();
+                return tarea.getTitulo().toLowerCase().contains(busqueda) ||
+                       tarea.getDescripcion().toLowerCase().contains(busqueda);
+            })
+            .collect(java.util.stream.Collectors.toList());
+    }
 }

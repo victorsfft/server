@@ -124,4 +124,45 @@ public class HistorialService {
     public List<Historial> obtenerHistorialRealizadoPor(Long idUsuario) {
         return historialRepository.obtenerHistorialRealizadoPor(idUsuario);
     }
+
+    @Transactional
+    public List<Historial> obtenerConFiltros(com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosHistorial filtros, Usuario usuarioActual) {
+        if (esAdmin(usuarioActual) && !filtros.tieneGrupo()) {
+            System.out.println("⚠️ Admin sin grupo seleccionado, devolviendo lista vacía para Historial");
+            return new java.util.ArrayList<>();
+        }
+
+        if (!esAdmin(usuarioActual)) {
+            filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
+        }
+
+        List<Historial> resultados = historialRepository.obtenerHistorialPorGrupo(filtros.getIdGrupo());
+
+        return aplicarFiltrosAHistorial(resultados, filtros);
+    }
+
+    private boolean esAdmin(Usuario usuario) {
+        String rol = usuario.getRol().name();
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
+    }
+
+    private List<Historial> aplicarFiltrosAHistorial(List<Historial> lista, com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosHistorial filtros) {
+        return lista.stream()
+            .filter(h -> !filtros.tieneUsuario() || (h.getRealizadoPor() != null && h.getRealizadoPor().getIdUsuario().equals(filtros.getIdUsuario())))
+            .filter(h -> !filtros.tieneTipoAccion() || (h.getTipoAccion() != null && h.getTipoAccion().name().equalsIgnoreCase(filtros.getTipoAccion())))
+            .filter(h -> !filtros.tieneEntidad() || (h.getTipoEntidad() != null && h.getTipoEntidad().equalsIgnoreCase(filtros.getEntidad())))
+            .filter(h -> {
+                if (!filtros.tieneFechas()) return true;
+                LocalDateTime fechaHistorial = h.getFechaHora();
+                if (filtros.getFechaDesde() != null && fechaHistorial.isBefore(filtros.getFechaDesde().atStartOfDay())) return false;
+                if (filtros.getFechaHasta() != null && fechaHistorial.isAfter(filtros.getFechaHasta().plusDays(1).atStartOfDay())) return false;
+                return true;
+            })
+            .filter(h -> {
+                if (!filtros.tieneBusqueda()) return true;
+                String busqueda = filtros.getTextoBusqueda().toLowerCase();
+                return h.getDescripcion().toLowerCase().contains(busqueda);
+            })
+            .collect(java.util.stream.Collectors.toList());
+    }
 }

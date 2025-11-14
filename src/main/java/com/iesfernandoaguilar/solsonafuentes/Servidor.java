@@ -30,7 +30,6 @@ public class Servidor {
     private ExecutorService executor;
     private ExecutorService handlersExecutor;
     private boolean stop;
-    private ConcurrentHashMap<Long, UsuarioHandler> usuariosHandlers;
 
 
     public Servidor() {
@@ -43,7 +42,6 @@ public class Servidor {
             server = new ServerSocket(port);
             executor = Executors.newCachedThreadPool();
             handlersExecutor = Executors.newCachedThreadPool();
-            usuariosHandlers = new ConcurrentHashMap<>();
 
 
         } catch (IOException e) {
@@ -104,29 +102,9 @@ public class Servidor {
         }
     }
 
-    public void iniciarSesion(Long usuarioId, ApplicationContext context, Socket socket){
-        if (usuariosHandlers.containsKey(usuarioId)) {
-            System.out.println("Usuario ya conectado. Cerrando sesión anterior.");
-            usuariosHandlers.get(usuarioId).cerrarConexion();
-            usuariosHandlers.remove(usuarioId);
-        }
-        UsuarioHandler uHandler = new UsuarioHandler(socket, context, this, usuarioId);
-        usuariosHandlers.put(usuarioId, uHandler);
-        handlersExecutor.execute(uHandler);
+    public ExecutorService getHandlersExecutor() {
+        return handlersExecutor;
     }
-
-    public void cerrarSesion(Long usuarioId) {
-        UsuarioHandler handler = usuariosHandlers.remove(usuarioId);
-        if (handler != null) {
-            handler.cerrarConexion();
-            System.out.println("Usuario " + usuarioId + " desconectado.");
-        }
-    }
-
-    public boolean isSesionActiva(Long usuarioId) {
-        return usuariosHandlers.containsKey(usuarioId);
-    }
-
 
     public static void main(String[] args) {
         SpringApplication.run(Servidor.class, args);

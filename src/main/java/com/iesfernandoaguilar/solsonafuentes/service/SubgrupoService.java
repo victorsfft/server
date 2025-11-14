@@ -85,6 +85,34 @@ public class SubgrupoService {
         return null;
     }
 
+    @Transactional
+    public List<Subgrupo> obtenerConFiltros(com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosSubgrupo filtros, Usuario usuarioActual) {
+        if (esAdmin(usuarioActual) && !filtros.tieneGrupo()) {
+            System.out.println("⚠️ Admin sin grupo seleccionado, devolviendo lista vacía para Subgrupos");
+            return new java.util.ArrayList<>();
+        }
 
-    
+        if (!esAdmin(usuarioActual)) {
+            filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
+        }
+
+        List<Subgrupo> resultados = subgrupoRepository.obtenerSubgrupos(filtros.getIdGrupo());
+
+        return aplicarFiltrosASubgrupos(resultados, filtros);
+    }
+
+    private boolean esAdmin(Usuario usuario) {
+        String rol = usuario.getRol().name();
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "SUPERADMIN".equalsIgnoreCase(rol);
+    }
+
+    private List<Subgrupo> aplicarFiltrosASubgrupos(List<Subgrupo> lista, com.iesfernandoaguilar.solsonafuentes.model.filtros.FiltrosSubgrupo filtros) {
+        return lista.stream()
+            .filter(subgrupo -> {
+                if (!filtros.tieneBusqueda()) return true;
+                String busqueda = filtros.getTextoBusqueda().toLowerCase();
+                return subgrupo.getNombre().toLowerCase().contains(busqueda);
+            })
+            .collect(java.util.stream.Collectors.toList());
+    }
 }
