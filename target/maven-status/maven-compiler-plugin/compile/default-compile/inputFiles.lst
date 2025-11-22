@@ -51,6 +51,7 @@ C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoag
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\SolicitudGrupo.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Subgrupo.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Tarea.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\TareaUsuario.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\model\Usuario.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\AnotacionesRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\ComentarioRepository.java
@@ -69,6 +70,7 @@ C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoag
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\SolicitudGrupoRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\SubgrupoRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\TareaRepository.java
+C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\TareaUsuarioRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\repository\UsuarioRepository.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\AnotacionesService.java
 C:\Users\victo\OneDrive\Documentos\GitHub\server\src\main\java\com\iesfernandoaguilar\solsonafuentes\service\ComentarioService.java

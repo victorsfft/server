@@ -13,16 +13,29 @@ import com.iesfernandoaguilar.solsonafuentes.enums.EstadoTarea;
 import com.iesfernandoaguilar.solsonafuentes.enums.Prioridad;
 import com.iesfernandoaguilar.solsonafuentes.model.Departamento;
 import com.iesfernandoaguilar.solsonafuentes.model.Tarea;
+import com.iesfernandoaguilar.solsonafuentes.model.TareaUsuario;
 import com.iesfernandoaguilar.solsonafuentes.model.Usuario;
 import com.iesfernandoaguilar.solsonafuentes.repository.TareaRepository;
+import com.iesfernandoaguilar.solsonafuentes.repository.TareaUsuarioRepository;
+import com.iesfernandoaguilar.solsonafuentes.repository.UsuarioRepository;
 
 import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 @Service
 public class TareaService {
 
     @Autowired
     private TareaRepository tareaRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Autowired
+    private TareaUsuarioRepository tareaUsuarioRepository;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     public Optional<Tarea> findByIdTarea(Long idTarea) {
         return tareaRepository.findByIdTarea(idTarea);
@@ -41,6 +54,10 @@ public class TareaService {
         Map<Long, Tarea> tareaMap = new HashMap<>();
         for (Tarea t : tareasConUsuarios) {
             tareaMap.put(t.getIdTarea(), t);
+            // Forzar inicialización de tareasUsuarios para asegurar que el campo trabajando esté disponible
+            if (t.getTareasUsuarios() != null) {
+                t.getTareasUsuarios().size();
+            }
         }
 
         // Segunda pasada: cargar departamentos para cada tarea
@@ -56,8 +73,16 @@ public class TareaService {
         return tareasConUsuarios;
     }
 
+    @Transactional
     public List<Tarea> obtenerTareasAsignadasAUsuario(Long idUsuario) {
-        return tareaRepository.obtenerTareasAsignadasAUsuario(idUsuario);
+        List<Tarea> tareas = tareaRepository.obtenerTareasAsignadasAUsuario(idUsuario);
+        // Forzar inicialización de tareasUsuarios
+        for (Tarea t : tareas) {
+            if (t.getTareasUsuarios() != null) {
+                t.getTareasUsuarios().size();
+            }
+        }
+        return tareas;
     }
 
     public List<Tarea> obtenerTareasAsignadasADepartamento(Long idDepartamento) {
@@ -105,8 +130,8 @@ public class TareaService {
         tarea.setPrioridad(prioridad);
         tarea.setFechaFin(fechaFin);
 
-        // Limpiar y actualizar usuarios asignados
-        tarea.getUsuariosAsignados().clear();
+        // Limpiar y actualizar usuarios asignados (ahora en tareasUsuarios)
+        tarea.getTareasUsuarios().clear();
         tareaRepository.flush(); // Forzar persistencia de la limpieza
 
         // Obtener nuevamente la tarea con departamentos para limpiarlos
@@ -134,7 +159,20 @@ public class TareaService {
         Optional<Tarea> tareaOpt = tareaRepository.findByIdTarea(idTarea);
         if (tareaOpt.isPresent()) {
             Tarea tarea = tareaOpt.get();
+            EstadoTarea estadoAnterior = tarea.getEstado();
             tarea.setEstado(nuevoEstado);
+
+            // Si se marca como COMPLETADA, establecer fecha de completación
+            if (nuevoEstado == EstadoTarea.COMPLETADA && estadoAnterior != EstadoTarea.COMPLETADA) {
+                tarea.setFechaCompletacion(java.time.LocalDateTime.now());
+                System.out.println("✅ Tarea completada - Fecha de completación establecida: " + tarea.getFechaCompletacion());
+            }
+            // Si se desmarca de COMPLETADA, limpiar fecha de completación
+            else if (estadoAnterior == EstadoTarea.COMPLETADA && nuevoEstado != EstadoTarea.COMPLETADA) {
+                tarea.setFechaCompletacion(null);
+                System.out.println("↩️ Tarea desmarcada como completada - Fecha de completación eliminada");
+            }
+
             return tareaRepository.save(tarea);
         }
         return null;
@@ -143,16 +181,24 @@ public class TareaService {
     @Transactional
     public Tarea asignarUsuario(Long idTarea, Usuario usuario) {
         try {
-            Optional<Tarea> tareaOpt = tareaRepository.findByIdTareaWithUsuarios(idTarea);
+            // Verificar si ya existe la relación
+            Optional<TareaUsuario> existente = tareaUsuarioRepository.findByTareaAndUsuario(idTarea, usuario.getIdUsuario());
+            if (existente.isPresent()) {
+                System.out.println("Usuario ya estaba asignado a la tarea");
+                return tareaRepository.findByIdTarea(idTarea).orElse(null);
+            }
+
+            Optional<Tarea> tareaOpt = tareaRepository.findByIdTarea(idTarea);
             if (tareaOpt.isPresent()) {
                 Tarea tarea = tareaOpt.get();
-                if (!tarea.getUsuariosAsignados().contains(usuario)) {
-                    tarea.addUsuarioAsignado(usuario);
-                    Tarea resultado = tareaRepository.save(tarea);
-                    tareaRepository.flush(); // Asegurar que se persista inmediatamente
-                    return resultado;
-                }
-                return tarea; // Ya estaba asignado
+
+                // Crear nueva relación TareaUsuario
+                TareaUsuario tareaUsuario = new TareaUsuario(tarea, usuario);
+                tareaUsuarioRepository.saveAndFlush(tareaUsuario);
+                tareaUsuarioRepository.flush();
+
+                System.out.println("✅ Usuario asignado a tarea correctamente");
+                return tarea;
             } else {
                 System.err.println("Error: Tarea con ID " + idTarea + " no encontrada");
             }
@@ -231,5 +277,96 @@ public class TareaService {
                        tarea.getDescripcion().toLowerCase().contains(busqueda);
             })
             .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Alterna el estado "trabajando" de un usuario en una tarea.
+     * Si el usuario está trabajando, lo desmarca. Si no está trabajando, lo marca.
+     * Si no existe la relación TareaUsuario, la crea automáticamente.
+     * El usuario puede trabajar en múltiples tareas simultáneamente.
+     *
+     * @param idTarea ID de la tarea
+     * @param idUsuario ID del usuario
+     * @return true si ahora está trabajando, false si dejó de trabajar
+     */
+    @Transactional
+    public boolean toggleTrabajando(Long idTarea, Long idUsuario) {
+        // Gestionar la tarea actual (permite trabajar en múltiples tareas simultáneamente)
+        Optional<TareaUsuario> tareaUsuarioOpt = tareaUsuarioRepository.findByTareaAndUsuario(idTarea, idUsuario);
+
+        if (tareaUsuarioOpt.isPresent()) {
+            // Ya existe la relación, alternar el estado.
+            TareaUsuario tareaUsuario = tareaUsuarioOpt.get();
+            boolean estadoAnterior = tareaUsuario.isTrabajando();
+            boolean nuevoEstado = !estadoAnterior;
+
+            System.out.println("🔄 ID TareaUsuario: " + tareaUsuario.getId() + " | Tarea: " + idTarea + " | Usuario: " + idUsuario);
+            System.out.println("   Estado anterior: " + estadoAnterior + " -> Nuevo estado: " + nuevoEstado);
+
+            tareaUsuario.setTrabajando(nuevoEstado);
+            TareaUsuario saved = tareaUsuarioRepository.saveAndFlush(tareaUsuario);
+
+            System.out.println("💾 GUARDADO EN BD - ID: " + saved.getId() + ", trabajando: " + saved.isTrabajando());
+
+            // Verificar inmediatamente leyendo de la BD
+            Optional<TareaUsuario> verificacion = tareaUsuarioRepository.findByTareaAndUsuario(idTarea, idUsuario);
+            if (verificacion.isPresent()) {
+                System.out.println("✓ VERIFICACION POST-SAVE: trabajando = " + verificacion.get().isTrabajando());
+            } else {
+                System.err.println("❌ ERROR CRITICO: Registro no encontrado después de guardar!");
+            }
+
+            entityManager.clear(); // Limpiar caché de Hibernate
+            System.out.println("🧹 Caché de Hibernate limpiado");
+
+            System.out.println((nuevoEstado ? "✅ Usuario trabajando" : "⏸️ Usuario dejó de trabajar") +
+                             " en tarea ID: " + idTarea);
+            return nuevoEstado;
+        } else {
+            // No existe la relación, crearla automáticamente con trabajando = true.
+            Optional<Tarea> tareaOpt = tareaRepository.findByIdTarea(idTarea);
+            if (!tareaOpt.isPresent()) {
+                System.err.println("❌ Tarea no encontrada: " + idTarea);
+                return false;
+            }
+
+            Optional<Usuario> usuarioOpt = usuarioRepository.findByIdUsuario(idUsuario);
+            if (!usuarioOpt.isPresent()) {
+                System.err.println("❌ Usuario no encontrado: " + idUsuario);
+                return false;
+            }
+
+            Tarea tarea = tareaOpt.get();
+            Usuario usuario = usuarioOpt.get();
+
+            // Crear nueva relación con trabajando = true.
+            TareaUsuario nuevaTareaUsuario = new TareaUsuario(tarea, usuario);
+            nuevaTareaUsuario.setTrabajando(true);
+            tareaUsuarioRepository.saveAndFlush(nuevaTareaUsuario);
+            entityManager.clear(); // Limpiar caché de Hibernate
+
+            System.out.println("✅ Usuario comenzó a trabajar en tarea ID: " + idTarea + " (relación creada automáticamente)");
+            return true;
+        }
+    }
+
+    /**
+     * Obtiene la lista de usuarios que están trabajando en una tarea
+     *
+     * @param idTarea ID de la tarea
+     * @return Lista de TareaUsuario de usuarios trabajando
+     */
+    public List<TareaUsuario> obtenerUsuariosTrabajando(Long idTarea) {
+        return tareaUsuarioRepository.findUsuariosTrabajandoEnTarea(idTarea);
+    }
+
+
+    public Long contarUsuariosTrabajando(Long idTarea) {
+        Long count = tareaUsuarioRepository.contarUsuariosTrabajandoEnTarea(idTarea);
+        return count != null ? count : 0L;
+    }
+
+    public boolean estaUsuarioTrabajando(Long idTarea, Long idUsuario) {
+        return tareaUsuarioRepository.estaUsuarioTrabajandoEnTarea(idTarea, idUsuario);
     }
 }

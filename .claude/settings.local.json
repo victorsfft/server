@@ -1,15 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/victo/OneDrive/Documentos/GitHub/javafx/**)",
-      "Bash(mvn clean package:*)",
+      "Read(//c/Users/victo/OneDrive/Documentos/GitHub/server/**)",
+      "Bash(mvn clean compile:*)",
+      "Bash(dir /B \"c:\\Users\\victo\\OneDrive\\Documentos\\GitHub\\javafx\\src\\main\\java\\com\\iesfernandoaguilar\\solsonafuentes\")",
       "Bash(dir:*)",
+      "Read(//c/Users/victo/OneDrive/Documentos/GitHub/**)",
+      "Bash(find:*)",
+      "Bash(mvn compile:*)",
+      "Bash(mvn clean package -DskipTests)",
       "Bash(findstr:*)",
       "Bash(cat:*)",
-      "Read(//c//**)",
-      "Bash(mvn clean compile:*)",
-      "Bash(mvn compile:*)",
-      "Bash(timeout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git log:*)",
+      "Bash(del \"C:\\Users\\victo\\OneDrive\\Documentos\\GitHub\\javafx\\src\\main\\java\\com\\iesfernandoaguilar\\solsonafuentes\\controller\\historial\\HistorialDetallesModalController.java\")",
+      "Bash(powershell -Command:*)"
     ],
     "deny": [],
     "ask": []

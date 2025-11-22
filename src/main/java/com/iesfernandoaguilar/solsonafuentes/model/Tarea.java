@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.iesfernandoaguilar.solsonafuentes.enums.EstadoTarea;
 import com.iesfernandoaguilar.solsonafuentes.enums.Prioridad;
 
@@ -21,9 +23,11 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "Tarea")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Tarea {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,8 +42,10 @@ public class Tarea {
     private LocalDate fechaInicio;
     
     private LocalDate fechaFin;
-    
+
     private LocalDateTime fechaCreacion;
+
+    private LocalDateTime fechaCompletacion;
 
     private String titulo;
     private String descripcion;
@@ -52,15 +58,19 @@ public class Tarea {
     //Relaciones One-to-Many
     @OneToMany(mappedBy = "tarea", fetch = FetchType.LAZY)
     private List<Comentario> comentarios = new ArrayList<>();
-    
-    //Relaciones Many-to-Many
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "Tarea_usuario",
-        joinColumns = @JoinColumn(name = "id_tarea"),
-        inverseJoinColumns = @JoinColumn(name = "id_usuario")
-    )
+
+    @OneToMany(mappedBy = "tarea", fetch = FetchType.LAZY)
+    private List<TareaUsuario> tareasUsuarios = new ArrayList<>();
+
+    //Relaciones Many-to-Many (Deprecated - usar tareasUsuarios)
+    @Transient
+    @JsonIgnore
     private List<Usuario> usuariosAsignados = new ArrayList<>();
+
+    // Campo transitorio para compatibilidad con JSON del cliente
+    @Transient
+    @JsonIgnore
+    private List<Long> usuariosTrabajandoIds;
     
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -131,6 +141,14 @@ public class Tarea {
         this.fechaCreacion = fechaCreacion;
     }
 
+    public LocalDateTime getFechaCompletacion() {
+        return fechaCompletacion;
+    }
+
+    public void setFechaCompletacion(LocalDateTime fechaCompletacion) {
+        this.fechaCompletacion = fechaCompletacion;
+    }
+
     public String getTitulo() {
         return titulo;
     }
@@ -164,7 +182,10 @@ public class Tarea {
     }
 
     public List<Usuario> getUsuariosAsignados() {
-        return usuariosAsignados;
+        // Extraer usuarios desde la relación TareaUsuario
+        return tareasUsuarios.stream()
+            .map(TareaUsuario::getUsuario)
+            .collect(java.util.stream.Collectors.toList());
     }
 
     public void setUsuariosAsignados(List<Usuario> usuariosAsignados) {
@@ -172,8 +193,12 @@ public class Tarea {
     }
 
     public void addUsuarioAsignado(Usuario usuario){
-        if(!usuariosAsignados.contains(usuario)){
-            usuariosAsignados.add(usuario);
+        // Crear TareaUsuario si no existe
+        boolean existe = tareasUsuarios.stream()
+            .anyMatch(tu -> tu.getUsuario().equals(usuario));
+        if (!existe) {
+            TareaUsuario tareaUsuario = new TareaUsuario(this, usuario);
+            tareasUsuarios.add(tareaUsuario);
         }
     }
 
@@ -205,5 +230,13 @@ public class Tarea {
         }
     }
 
-    
+    public List<TareaUsuario> getTareasUsuarios() {
+        return tareasUsuarios;
+    }
+
+    public void setTareasUsuarios(List<TareaUsuario> tareasUsuarios) {
+        this.tareasUsuarios = tareasUsuarios;
+    }
+
+
 }

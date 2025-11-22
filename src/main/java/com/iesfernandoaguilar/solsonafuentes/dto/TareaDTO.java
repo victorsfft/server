@@ -21,6 +21,7 @@ public class TareaDTO {
     private String descripcion;
     private Long creadoPorId;
     private List<Long> usuariosAsignadosIds;
+    private List<Long> usuariosTrabajandoIds; // IDs de usuarios que están trabajando activamente
     private List<Long> departamentosAsignadosIds;
     private List<Long> tareasDependientesIds;
     
@@ -114,6 +115,14 @@ public class TareaDTO {
         this.usuariosAsignadosIds = usuariosAsignadosIds;
     }
 
+    public List<Long> getUsuariosTrabajandoIds() {
+        return usuariosTrabajandoIds;
+    }
+
+    public void setUsuariosTrabajandoIds(List<Long> usuariosTrabajandoIds) {
+        this.usuariosTrabajandoIds = usuariosTrabajandoIds;
+    }
+
     public List<Long> getDepartamentosAsignadosIds() {
         return departamentosAsignadosIds;
     }
@@ -158,14 +167,27 @@ public class TareaDTO {
         }
 
         // Convertir listas de objetos a listas de IDs (siempre inicializar listas vacías)
-        if (tarea.getUsuariosAsignados() != null && Hibernate.isInitialized(tarea.getUsuariosAsignados())) {
+        if (tarea.getTareasUsuarios() != null && Hibernate.isInitialized(tarea.getTareasUsuarios())) {
             dto.setUsuariosAsignadosIds(
-                tarea.getUsuariosAsignados().stream()
-                    .map(usuario -> usuario.getIdUsuario())
+                tarea.getTareasUsuarios().stream()
+                    .map(tu -> tu.getUsuario().getIdUsuario())
                     .collect(Collectors.toList())
             );
         } else {
             dto.setUsuariosAsignadosIds(new ArrayList<>());
+        }
+
+        // Usuarios que están trabajando activamente
+        if (tarea.getTareasUsuarios() != null && Hibernate.isInitialized(tarea.getTareasUsuarios())) {
+            List<Long> trabajandoIds = tarea.getTareasUsuarios().stream()
+                    .filter(tu -> tu.isTrabajando())
+                    .map(tu -> tu.getUsuario().getIdUsuario())
+                    .collect(Collectors.toList());
+            dto.setUsuariosTrabajandoIds(trabajandoIds);
+            System.out.println("🔍 Tarea " + tarea.getIdTarea() + " - Usuarios trabajando: " + trabajandoIds.size() + " - IDs: " + trabajandoIds);
+        } else {
+            dto.setUsuariosTrabajandoIds(new ArrayList<>());
+            System.out.println("⚠️ Tarea " + tarea.getIdTarea() + " - tareasUsuarios NO inicializado o es null");
         }
 
         if (tarea.getDepartamentosAsignados() != null && Hibernate.isInitialized(tarea.getDepartamentosAsignados())) {

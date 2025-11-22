@@ -143,6 +143,7 @@ public class UsuarioHandler implements Runnable{
         GrupoDTO grupoDto = null;
         String json = "";
         ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         Long idGrupo;
         Long idSubgrupo;
         Long idDepartamento;
@@ -985,6 +986,9 @@ public class UsuarioHandler implements Runnable{
                             if (tareaCreada != null) {
                                 System.out.println("✅ Tarea creada: " + titulo + " (ID: " + tareaCreada.getIdTarea() + ")");
 
+                                // Lista para almacenar usuarios asignados para actualizar estadísticas
+                                List<Usuario> usuariosAsignadosParaEstadisticas = new ArrayList<>();
+
                                 // Asignar usuarios
                                 if (usuariosStr != null && !usuariosStr.isEmpty()) {
                                     String[] idsUsuarios = usuariosStr.split(",");
@@ -997,6 +1001,7 @@ public class UsuarioHandler implements Runnable{
                                                     Tarea resultado = tareaService.asignarUsuario(tareaCreada.getIdTarea(), usuarioAsignado.get());
                                                     if (resultado != null) {
                                                         tareaCreada = resultado;
+                                                        usuariosAsignadosParaEstadisticas.add(usuarioAsignado.get());
                                                         System.out.println("   ✅ Usuario asignado: " + usuarioAsignado.get().getNombre());
                                                     }
                                                 }
@@ -1026,6 +1031,16 @@ public class UsuarioHandler implements Runnable{
                                                 System.err.println("   ⚠️ ID de departamento inválido: " + idDeptStr);
                                             }
                                         }
+                                    }
+                                }
+
+                                // Actualizar estadísticas de todos los usuarios asignados
+                                for (Usuario usuarioAsignado : usuariosAsignadosParaEstadisticas) {
+                                    try {
+                                        estadisticaService.actualizarEstadisticasUsuario(usuarioAsignado);
+                                        System.out.println("   📊 Estadísticas actualizadas para: " + usuarioAsignado.getNombre());
+                                    } catch (Exception e) {
+                                        System.err.println("   ⚠️ Error actualizando estadísticas para " + usuarioAsignado.getNombre() + ": " + e.getMessage());
                                     }
                                 }
 
@@ -1171,11 +1186,15 @@ public class UsuarioHandler implements Runnable{
                                 mensajeServer.addArg("actualizado");
                                 System.out.println("✅ Estado de tarea actualizado: " + nuevoEstado);
 
-                                if (nuevoEstado == EstadoTarea.COMPLETADA) {
-                                    usuarioOpt = usuarioService.findByIdUsuario(usuarioId);
-                                    if (usuarioOpt.isPresent()) {
-                                        estadisticaService.actualizarEstadisticasUsuario(usuarioOpt.get());
-                                        System.out.println("✅ Estadísticas actualizadas para usuario: " + usuarioId);
+                                // Actualizar estadísticas de TODOS los usuarios asignados a la tarea
+                                if (tareaActualizada.getUsuariosAsignados() != null && !tareaActualizada.getUsuariosAsignados().isEmpty()) {
+                                    for (Usuario usuarioAsignado : tareaActualizada.getUsuariosAsignados()) {
+                                        try {
+                                            estadisticaService.actualizarEstadisticasUsuario(usuarioAsignado);
+                                            System.out.println("   📊 Estadísticas actualizadas para: " + usuarioAsignado.getNombre());
+                                        } catch (Exception e) {
+                                            System.err.println("   ⚠️ Error actualizando estadísticas: " + e.getMessage());
+                                        }
                                     }
                                 }
                             } else {
@@ -1215,6 +1234,63 @@ public class UsuarioHandler implements Runnable{
                         } catch (Exception e) {
                             mensajeServer.addArg("error");
                             System.err.println("❌ Error al asignar usuario a tarea: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "TOGGLE_TRABAJANDO_TAREA":
+                        mensajeServer.setTipo("TRABAJANDO_TAREA_TOGGLED");
+
+                        try {
+                            Long idTarea = Long.valueOf(mensajeUser.getArgs().get(0));
+                            Long idUsuarioTrabajando = Long.valueOf(mensajeUser.getArgs().get(1));
+
+                            boolean estaTrabajando = tareaService.toggleTrabajando(idTarea, idUsuarioTrabajando);
+
+                            if (estaTrabajando) {
+                                mensajeServer.addArg("trabajando");
+                            } else {
+                                mensajeServer.addArg("no_trabajando");
+                            }
+
+                        } catch (Exception e) {
+                            mensajeServer.addArg("error");
+                            System.err.println("❌ Error al alternar estado trabajando: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "CONTAR_USUARIOS_TRABAJANDO":
+                        mensajeServer.setTipo("CANTIDAD_USUARIOS_TRABAJANDO");
+
+                        try {
+                            Long idTarea = Long.valueOf(mensajeUser.getArgs().get(0));
+                            Long cantidad = tareaService.contarUsuariosTrabajando(idTarea);
+                            mensajeServer.addArg(cantidad.toString());
+                        } catch (Exception e) {
+                            mensajeServer.addArg("0");
+                            System.err.println("❌ Error al contar usuarios trabajando: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                        enviar(mensajeServer);
+                        break;
+
+                    case "VERIFICAR_USUARIO_TRABAJANDO":
+                        mensajeServer.setTipo("ESTADO_USUARIO_TRABAJANDO");
+
+                        try {
+                            Long idTareaVerificar = Long.valueOf(mensajeUser.getArgs().get(0));
+                            Long idUsuarioVerificar = Long.valueOf(mensajeUser.getArgs().get(1));
+                            boolean estaTrabajando = tareaService.estaUsuarioTrabajando(idTareaVerificar, idUsuarioVerificar);
+                            mensajeServer.addArg(estaTrabajando ? "true" : "false");
+                        } catch (Exception e) {
+                            mensajeServer.addArg("false");
+                            System.err.println("❌ Error al verificar usuario trabajando: " + e.getMessage());
                             e.printStackTrace();
                         }
 
@@ -1291,9 +1367,27 @@ public class UsuarioHandler implements Runnable{
 
                         try {
                             Long idTarea = Long.valueOf(mensajeUser.getArgs().get(0));
+
+                            // Obtener usuarios asignados ANTES de eliminar
+                            Optional<Tarea> tareaOpt = tareaService.findByIdTareaWithUsuarios(idTarea);
+                            List<Usuario> usuariosAfectados = new ArrayList<>();
+                            if (tareaOpt.isPresent() && tareaOpt.get().getUsuariosAsignados() != null) {
+                                usuariosAfectados.addAll(tareaOpt.get().getUsuariosAsignados());
+                            }
+
                             tareaService.eliminarTarea(idTarea);
                             mensajeServer.addArg("eliminada");
                             System.out.println("✅ Tarea eliminada: " + idTarea);
+
+                            // Actualizar estadísticas de usuarios afectados
+                            for (Usuario usuarioAfectado : usuariosAfectados) {
+                                try {
+                                    estadisticaService.actualizarEstadisticasUsuario(usuarioAfectado);
+                                    System.out.println("   📊 Estadísticas actualizadas para: " + usuarioAfectado.getNombre());
+                                } catch (Exception e) {
+                                    System.err.println("   ⚠️ Error actualizando estadísticas: " + e.getMessage());
+                                }
+                            }
                         } catch (Exception e) {
                             mensajeServer.addArg("error");
                             System.err.println("❌ Error al eliminar tarea: " + e.getMessage());
@@ -1309,6 +1403,7 @@ public class UsuarioHandler implements Runnable{
                             String filtrosJson = mensajeUser.getArgs().get(0);
                             ObjectMapper localMapper = new ObjectMapper();
                             localMapper.registerModule(new JavaTimeModule());
+                            localMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
                             FiltrosTarea filtros = localMapper.readValue(filtrosJson, FiltrosTarea.class);
 
@@ -2155,7 +2250,86 @@ public class UsuarioHandler implements Runnable{
                         enviar(mensajeServer);
                         break;
 
+                    case "OBTENER_RANKING_SEMANAL":
+                        mensajeServer.setTipo("DAR_RANKING_SEMANAL");
+                        try {
+                            Optional<Usuario> usuarioActualOpt = usuarioService.findByIdUsuario(this.usuarioId);
+                            if (!usuarioActualOpt.isPresent()) {
+                                throw new IllegalStateException("El usuario que realiza la operación no se encontró.");
+                            }
+                            Usuario usuarioActual = usuarioActualOpt.get();
 
+                            // Validar que el usuario tenga un grupo
+                            if (usuarioActual.getGrupo() == null) {
+                                System.err.println("❌ Usuario sin grupo, no se puede obtener ranking");
+                                mensajeServer.addArg("[]");
+                                break;
+                            }
+
+                            Long grupoIdRanking = usuarioActual.getGrupo().getIdGrupo();
+
+                            // Calcular fechas de la semana actual (lunes a domingo)
+                            LocalDate hoy = LocalDate.now();
+                            LocalDate inicioSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1); // Lunes
+                            LocalDate finSemana = inicioSemana.plusDays(6); // Domingo
+
+                            System.out.println("📊 Obteniendo ranking semanal del " + inicioSemana + " al " + finSemana);
+
+                            // Obtener estadísticas semanales usando el método dinámico
+                            List<Estadistica> estadisticas = estadisticaService.calcularEstadisticasConFiltros(
+                                grupoIdRanking,
+                                null, // null = todos los usuarios
+                                null, // null = todos los departamentos
+                                null, // null = todos los subgrupos
+                                inicioSemana,
+                                finSemana
+                            );
+
+                            // Filtrar solo estadísticas con usuario (excluir agregadas del grupo)
+                            // y ordenar por tareas completadas (descendente)
+                            List<Estadistica> ranking = estadisticas.stream()
+                                .filter(e -> e.getUsuario() != null)
+                                .sorted((e1, e2) -> {
+                                    // Ordenar por tareas completadas (descendente)
+                                    int comparacion = Integer.compare(
+                                        e2.getTareasCompletadasTotales() != null ? e2.getTareasCompletadasTotales() : 0,
+                                        e1.getTareasCompletadasTotales() != null ? e1.getTareasCompletadasTotales() : 0
+                                    );
+
+                                    // Si tienen las mismas tareas completadas, ordenar por horas trabajadas
+                                    if (comparacion == 0) {
+                                        comparacion = Double.compare(
+                                            e2.getHorasTotales() != null ? e2.getHorasTotales() : 0.0,
+                                            e1.getHorasTotales() != null ? e1.getHorasTotales() : 0.0
+                                        );
+                                    }
+
+                                    return comparacion;
+                                })
+                                .limit(10) // Top 10 empleados
+                                .collect(Collectors.toList());
+
+                            System.out.println("📊 Ranking semanal: " + ranking.size() + " empleados");
+
+                            // Convertir a DTOs
+                            List<EstadisticaDTO> rankingDtos = ranking.stream()
+                                .map(EstadisticaDTO::fromEntity)
+                                .collect(Collectors.toList());
+
+                            ObjectMapper localMapper = new ObjectMapper();
+                            localMapper.registerModule(new JavaTimeModule());
+                            localMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+                            String jsonResponse = localMapper.writeValueAsString(rankingDtos);
+                            mensajeServer.addArg(jsonResponse);
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Error obteniendo ranking semanal");
+                            e.printStackTrace();
+                            mensajeServer.addArg("[]");
+                        }
+                        enviar(mensajeServer);
+                        break;
 
                     case "CREAR_ANOTACION":
                         mensajeServer.setTipo("ANOTACION_CREADA");
@@ -2589,6 +2763,19 @@ public class UsuarioHandler implements Runnable{
                                     if (deptoAsignadoOpt.isPresent()) {
                                         tareaService.asignarDepartamento(idTarea, deptoAsignadoOpt.get());
                                         System.out.println("   ✅ Departamento asignado: " + deptoAsignadoOpt.get().getNombre());
+                                    }
+                                }
+
+                                // Actualizar estadísticas de todos los usuarios asignados
+                                Optional<Tarea> tareaFinalOpt = tareaService.findByIdTareaWithUsuarios(idTarea);
+                                if (tareaFinalOpt.isPresent() && tareaFinalOpt.get().getUsuariosAsignados() != null) {
+                                    for (Usuario usuarioAsignado : tareaFinalOpt.get().getUsuariosAsignados()) {
+                                        try {
+                                            estadisticaService.actualizarEstadisticasUsuario(usuarioAsignado);
+                                            System.out.println("   📊 Estadísticas actualizadas para: " + usuarioAsignado.getNombre());
+                                        } catch (Exception e) {
+                                            System.err.println("   ⚠️ Error actualizando estadísticas: " + e.getMessage());
+                                        }
                                     }
                                 }
 

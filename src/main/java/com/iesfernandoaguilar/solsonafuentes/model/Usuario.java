@@ -95,11 +95,11 @@ public class Usuario {
     
     @OneToMany(mappedBy = "usuario", fetch = FetchType.LAZY)
     private List<Estadistica> estadisticas = new ArrayList<>();
-    
+
+    @OneToMany(mappedBy = "usuario", fetch = FetchType.LAZY)
+    private List<TareaUsuario> usuarioTareas = new ArrayList<>();
+
     //Relaciones Many-to-Many
-    @ManyToMany(mappedBy = "usuariosAsignados", fetch = FetchType.LAZY)
-    private List<Tarea> tareasAsignadas = new ArrayList<>();
-    
     @ManyToMany(mappedBy = "usuariosAsistentes", fetch = FetchType.LAZY)
     private List<Evento> eventosAsignados = new ArrayList<>();
 
@@ -291,17 +291,30 @@ public class Usuario {
     }
 
     public List<Tarea> getTareasAsignadas() {
-        return tareasAsignadas;
+        return usuarioTareas.stream()
+            .map(TareaUsuario::getTarea)
+            .collect(java.util.stream.Collectors.toList());
     }
 
     public void setTareasAsignadas(List<Tarea> tareasAsignadas) {
-        this.tareasAsignadas = tareasAsignadas;
+        // No-op, mantenido por compatibilidad
     }
 
     public void addTareaAsignada(Tarea tarea){
-        if(!tareasAsignadas.contains(tarea)){
-            tareasAsignadas.add(tarea);
+        boolean existe = usuarioTareas.stream()
+            .anyMatch(tu -> tu.getTarea().equals(tarea));
+        if (!existe) {
+            TareaUsuario tareaUsuario = new TareaUsuario(tarea, this);
+            usuarioTareas.add(tareaUsuario);
         }
+    }
+
+    public List<TareaUsuario> getUsuarioTareas() {
+        return usuarioTareas;
+    }
+
+    public void setUsuarioTareas(List<TareaUsuario> usuarioTareas) {
+        this.usuarioTareas = usuarioTareas;
     }
 
     public List<Evento> getEventosAsignados() {

@@ -15,14 +15,13 @@ public interface TareaRepository extends JpaRepository<Tarea, Long> {
 
     Optional<Tarea> findByIdTarea(Long idTarea);
 
-    @Query("SELECT DISTINCT t FROM Tarea t LEFT JOIN FETCH t.usuariosAsignados WHERE t.idTarea = :idTarea")
+    @Query("SELECT DISTINCT t FROM Tarea t LEFT JOIN FETCH t.tareasUsuarios tu LEFT JOIN FETCH tu.usuario WHERE t.idTarea = :idTarea")
     Optional<Tarea> findByIdTareaWithUsuarios(@Param("idTarea") Long idTarea);
 
     @Query("SELECT DISTINCT t FROM Tarea t LEFT JOIN FETCH t.departamentosAsignados WHERE t.idTarea = :idTarea")
     Optional<Tarea> findByIdTareaWithDepartamentos(@Param("idTarea") Long idTarea);
 
     @Query("SELECT DISTINCT t FROM Tarea t " +
-           "LEFT JOIN FETCH t.usuariosAsignados " +
            "WHERE t.creadoPor.grupo.idGrupo = :idGrupo " +
            "AND t.estado <> 'COMPLETADA'")
     List<Tarea> obtenerTareasPorGrupoWithUsuarios(@Param("idGrupo") Long idGrupo);
@@ -39,8 +38,9 @@ public interface TareaRepository extends JpaRepository<Tarea, Long> {
     List<Tarea> obtenerTareasPorGrupo(@Param("idGrupo") Long idGrupo);
 
     @Query("SELECT DISTINCT t FROM Tarea t " +
-           "LEFT JOIN FETCH t.usuariosAsignados ua " +
-           "WHERE ua.idUsuario = :idUsuario")
+           "LEFT JOIN FETCH t.tareasUsuarios tu " +
+           "LEFT JOIN FETCH tu.usuario u " +
+           "WHERE u.idUsuario = :idUsuario")
     List<Tarea> obtenerTareasAsignadasAUsuario(@Param("idUsuario") Long idUsuario);
 
     @Query("SELECT DISTINCT t FROM Tarea t " +

@@ -1,5 +1,6 @@
 com\iesfernandoaguilar\solsonafuentes\service\HistorialService.class
 com\iesfernandoaguilar\solsonafuentes\util\MakeAbstractRequest.class
+com\iesfernandoaguilar\solsonafuentes\model\TareaUsuario.class
 com\iesfernandoaguilar\solsonafuentes\model\DescansoJornada.class
 com\iesfernandoaguilar\solsonafuentes\util\Serializador.class
 com\iesfernandoaguilar\solsonafuentes\repository\SolicitudGrupoRepository.class
@@ -25,6 +26,7 @@ com\iesfernandoaguilar\solsonafuentes\repository\DescansoJornadaRepository.class
 com\iesfernandoaguilar\solsonafuentes\enums\EstadoConfiguracion.class
 com\iesfernandoaguilar\solsonafuentes\enums\Rol.class
 com\iesfernandoaguilar\solsonafuentes\model\SolicitudGrupo.class
+com\iesfernandoaguilar\solsonafuentes\repository\TareaUsuarioRepository.class
 com\iesfernandoaguilar\solsonafuentes\service\SubgrupoService.class
 com\iesfernandoaguilar\solsonafuentes\util\GsonHelper$DiaSemanaAdapter.class
 com\iesfernandoaguilar\solsonafuentes\service\AnotacionesService.class

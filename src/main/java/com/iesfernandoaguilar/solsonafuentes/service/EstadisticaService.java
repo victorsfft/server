@@ -111,6 +111,9 @@ public class EstadisticaService {
 
         // Obtener tareas del usuario
         List<Tarea> tareasUsuario = tareaRepository.obtenerTareasAsignadasAUsuario(usuario.getIdUsuario());
+        System.out.println("📊 DEBUG - Usuario: " + usuario.getNombre() + " (ID: " + usuario.getIdUsuario() + ")");
+        System.out.println("📊 DEBUG - Total tareas asignadas: " + tareasUsuario.size());
+        System.out.println("📊 DEBUG - Periodo semana: " + inicioSemana + " a " + finSemana);
 
         // Calcular estadísticas de tareas de la semana
         int tareasCompletadasSemana = 0;
@@ -123,33 +126,52 @@ public class EstadisticaService {
         int tareasRetrasadasTotales = 0;
 
         for (Tarea tarea : tareasUsuario) {
-            // Estadísticas de la semana
-            if (tarea.getFechaCreacion() != null) {
-                LocalDate fechaCreacion = tarea.getFechaCreacion().toLocalDate();
-                boolean esEstaSemana = !fechaCreacion.isBefore(inicioSemana) && !fechaCreacion.isAfter(finSemana);
+            System.out.println("  📝 Tarea: " + tarea.getTitulo() + " - Estado: " + tarea.getEstado() +
+                             " - FechaCompletacion: " + tarea.getFechaCompletacion());
 
-                if (esEstaSemana) {
-                    if (tarea.getEstado() == EstadoTarea.COMPLETADA) {
-                        tareasCompletadasSemana++;
-                    } else if (tarea.getEstado() == EstadoTarea.PENDIENTE) {
-                        tareasPendientesSemana++;
-                        if (tarea.getFechaFin() != null && tarea.getFechaFin().isBefore(hoy)) {
-                            tareasRetrasadasSemana++;
-                        }
-                    }
-                }
-            }
-
-            // Estadísticas totales
+            // Contar estadísticas totales (todas las tareas en su estado actual)
             if (tarea.getEstado() == EstadoTarea.COMPLETADA) {
                 tareasCompletadasTotales++;
+                System.out.println("    ✅ Completada (total++): " + tareasCompletadasTotales);
+
+                // Para estadísticas semanales, verificar si se completó esta semana
+                LocalDate fechaCompletacion = null;
+                if (tarea.getFechaCompletacion() != null) {
+                    fechaCompletacion = tarea.getFechaCompletacion().toLocalDate();
+                    System.out.println("    📅 Fecha completación: " + fechaCompletacion);
+                } else if (tarea.getFechaCreacion() != null) {
+                    // Fallback: usar fechaCreacion para tareas antiguas sin fechaCompletacion
+                    fechaCompletacion = tarea.getFechaCreacion().toLocalDate();
+                    System.out.println("    ⚠️ Sin fechaCompletacion - usando fechaCreacion como fallback: " + fechaCompletacion);
+                }
+
+                if (fechaCompletacion != null) {
+                    boolean completadaEstaSemana = !fechaCompletacion.isBefore(inicioSemana) && !fechaCompletacion.isAfter(finSemana);
+                    System.out.println("    🗓️ Esta semana (" + inicioSemana + " a " + finSemana + "): " + completadaEstaSemana);
+                    if (completadaEstaSemana) {
+                        tareasCompletadasSemana++;
+                        System.out.println("    ✅ Completada esta semana (semana++): " + tareasCompletadasSemana);
+                    }
+                } else {
+                    System.out.println("    ❌ Tarea completada sin fechaCompletacion ni fechaCreacion!");
+                }
             } else if (tarea.getEstado() == EstadoTarea.PENDIENTE) {
                 tareasPendientesTotales++;
+                tareasPendientesSemana++;
+                System.out.println("    ⏳ Pendiente (total++, semana++): " + tareasPendientesTotales);
                 if (tarea.getFechaFin() != null && tarea.getFechaFin().isBefore(hoy)) {
                     tareasRetrasadasTotales++;
+                    tareasRetrasadasSemana++;
+                    System.out.println("    🚨 Retrasada (total++, semana++): " + tareasRetrasadasTotales);
                 }
             }
         }
+
+        System.out.println("📊 DEBUG - RESULTADO:");
+        System.out.println("  Completadas Semana: " + tareasCompletadasSemana);
+        System.out.println("  Completadas Total: " + tareasCompletadasTotales);
+        System.out.println("  Pendientes Semana: " + tareasPendientesSemana);
+        System.out.println("  Pendientes Total: " + tareasPendientesTotales);
 
         estadistica.setTareasCompletadasSemana(tareasCompletadasSemana);
         estadistica.setTareasPendientesSemana(tareasPendientesSemana);
@@ -309,23 +331,38 @@ public class EstadisticaService {
             filtros.setIdGrupo(usuarioActual.getGrupo().getIdGrupo());
         }
 
-        LocalDate fechaDesde = filtros.getFechaDesde();
-        LocalDate fechaHasta = filtros.getFechaHasta();
+        System.out.println("📊 Obteniendo estadísticas del grupo: " + filtros.getIdGrupo());
 
-        if (filtros.getPeriodo() != null && !filtros.getPeriodo().isEmpty()) {
-            LocalDate[] fechas = getFechasFromPeriodo(filtros.getPeriodo());
-            fechaDesde = fechas[0];
-            fechaHasta = fechas[1];
+        // Leer DIRECTAMENTE de la tabla estadistica
+        List<Estadistica> estadisticas = estadisticaRepository.obtenerUltimasEstadisticasUsuariosDelGrupo(filtros.getIdGrupo());
+        System.out.println("📊 Total estadísticas de BD: " + estadisticas.size());
+
+        // Aplicar filtros
+        java.util.stream.Stream<Estadistica> stream = estadisticas.stream();
+
+        // Filtro por usuario
+        if (filtros.getIdUsuario() != null) {
+            stream = stream.filter(e -> e.getUsuario() != null && e.getUsuario().getIdUsuario().equals(filtros.getIdUsuario()));
         }
 
-        return calcularEstadisticasConFiltros(
-            filtros.getIdGrupo(),
-            filtros.getIdUsuario(),
-            filtros.getIdDepartamento(),
-            filtros.getIdSubgrupo(),
-            fechaDesde,
-            fechaHasta
-        );
+        // Filtro por departamento
+        if (filtros.getIdDepartamento() != null) {
+            stream = stream.filter(e -> e.getUsuario() != null &&
+                                        e.getUsuario().getDepartamento() != null &&
+                                        e.getUsuario().getDepartamento().getIdDepartamento().equals(filtros.getIdDepartamento()));
+        }
+
+        // Filtro por subgrupo
+        if (filtros.getIdSubgrupo() != null) {
+            stream = stream.filter(e -> e.getUsuario() != null &&
+                                        e.getUsuario().getSubgrupo() != null &&
+                                        e.getUsuario().getSubgrupo().getIdSubgrupo().equals(filtros.getIdSubgrupo()));
+        }
+
+        List<Estadistica> resultado = stream.collect(java.util.stream.Collectors.toList());
+        System.out.println("📊 Estadísticas después de filtros: " + resultado.size());
+
+        return resultado;
     }
 
     private boolean esAdmin(Usuario usuario) {
